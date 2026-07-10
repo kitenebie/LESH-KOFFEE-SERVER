@@ -75,6 +75,15 @@ class VerifyRequestSignature
         $payload = "{$timestamp}.{$method}.{$path}.{$body}";
         $expectedSignature = hash_hmac('sha256', $payload, $signingKey);
 
+        // Debug: log what the server reconstructs vs what the app sent
+        if (!hash_equals($expectedSignature, $signature)) {
+            \Log::debug('[SignatureVerification] Mismatch debug', [
+                'server_payload' => "{$timestamp}.{$method}.{$path}." . (strlen($body) > 100 ? substr($body, 0, 100) . '...' : $body),
+                'server_signature' => $expectedSignature,
+                'client_signature' => $signature,
+            ]);
+        }
+
         if (!hash_equals($expectedSignature, $signature)) {
             \Log::warning('[SignatureVerification] Invalid signature', [
                 'ip' => $request->ip(),
