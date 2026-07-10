@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\WalletRepositoryInterface;
+use App\Models\Product;
+use App\Models\ProductCustomization;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -45,8 +47,14 @@ class OrderService
     public function createOrder(array $data)
     {
         $userId = $data['user_id'];
-        $total = (float) ($data['total'] ?? 0);
         $paymentMethod = $data['payment_method'] ?? null;
+        $items = $data['items'] ?? [];
+
+        // ─── SERVER-SIDE PRICE RECALCULATION ───────────────────────────────
+        $recalculated = $this->recalculateOrderTotal($items, (float) ($data['delivery_fee'] ?? 0), (float) ($data['discount'] ?? 0));
+        $data['subtotal'] = $recalculated['subtotal'];
+        $data['total'] = $recalculated['total'];
+        $total = $recalculated['total'];
 
         // ─── NON-WALLET PAYMENT: Just create the order ──────────────────────
         if ($paymentMethod !== 'wallet' || $total <= 0) {
@@ -98,5 +106,73 @@ class OrderService
 
             return $order;
         });
+    }
+
+    /**
+     * Recalculate order subtotal and total from actual DB product prices.
+     * 
+     * This prevents price manipulation — even if the client sends a tampered total,
+     * we always compute from the source-of-truth (products table + customization options).
+     */
+    private function recalculateOrderTotal(array $items, float $deliveryFee = 0, float $discount = 0): array
+    {
+        if (empty($items)) {
+            return ['subtotal' => 0, 'delivery_fee' => $deliveryFee, 'discount' => $discount, 'total' => 0];
+        }
+
+        // Fetch all referenced products in one query
+        $productIds = array_filter(array_column($items, 'product_id'));
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
+        // Fetch all customizations for those products
+        $customizations = ProductCustomization::whereIn('product_id', $productIds)->get()->keyBy('product_id');
+
+        $subtotal = 0;
+
+        foreach ($items as $item) {
+            $productId = $item['product_id'] ?? null;
+            $quantity = (int) ($item['quantity'] ?? 1);
+
+            $product = $products->get($productId);
+            if (!$product) {
+                Log::warning("[Order] Product not found during recalculation", ['product_id' => $productId]);
+                continue;
+            }
+
+            // Base price from DB (source of truth)
+            $unitPrice = (float) $product->price;
+
+            // Add customization option prices from DB
+            $customization = $item['customization'] ?? null;
+            if ($customization && isset($customization['selections'])) {
+                $productCustomization = $customizations->get($productId);
+                $customizationData = $productCustomization?->customizations ?? [];
+
+                foreach ($customization['selections'] as $group => $selectedOptions) {
+                    $groupConfig = $customizationData[$group] ?? null;
+                    if (!$groupConfig || !isset($groupConfig['options'])) continue;
+
+                    $selectedList = is_array($selectedOptions) ? $selectedOptions : [$selectedOptions];
+                    foreach ($selectedList as $selectedName) {
+                        foreach ($groupConfig['options'] as $option) {
+                            if (($option['name'] ?? '') === $selectedName) {
+                                $unitPrice += (float) ($option['price'] ?? 0);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $subtotal += $unitPrice * $quantity;
+        }
+
+        $total = max(0, round($subtotal + $deliveryFee - $discount, 2));
+
+        return [
+            'subtotal' => round($subtotal, 2),
+            'delivery_fee' => $deliveryFee,
+            'discount' => $discount,
+            'total' => $total,
+        ];
     }
 }

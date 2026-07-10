@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 
 class OrderRepository implements OrderRepositoryInterface
@@ -43,11 +44,15 @@ class OrderRepository implements OrderRepositoryInterface
 
         if (isset($data['items']) && is_array($data['items'])) {
             foreach ($data['items'] as $item) {
+                // Use server-verified price if available, otherwise look up from DB
+                $product = Product::find($item['product_id']);
+                $price = $item['price'] ?? $product?->price ?? 0;
+
                 $order->items()->create([
                     'product_id' => $item['product_id'],
-                    'name' => $item['name'],
+                    'name' => $item['name'] ?? $product?->name ?? 'Unknown',
                     'quantity' => $item['quantity'],
-                    'price' => $item['price'],
+                    'price' => $price,
                     'customization' => $item['customization'] ?? null,
                 ]);
             }
