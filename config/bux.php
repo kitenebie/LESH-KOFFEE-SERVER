@@ -16,4 +16,13 @@ return [
 
     'client_id' => env('BUX_CLIENT_ID'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Webhook Secret (for signature verification)
+    |--------------------------------------------------------------------------
+    | Used to verify HMAC-SHA256 signature on incoming webhooks.
+    | Set to null to skip verification (development only).
+    */
+    'webhook_secret' => env('BUX_WEBHOOK_SECRET'),
+
 ];

@@ -3,26 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LeshWallet;
+use App\Models\Order;
+use App\Models\ProcessedWebhook;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use App\Models\User;
-use App\Models\Order;
-use App\Models\LeshWallet;
-use App\Models\Subscription;
 
 class PaymentController extends Controller
 {
     /**
      * POST /api/payments/checkout
      * 
-     * Generate a BUX.ph checkout link for online payment
+     * Generate a BUX.ph checkout link for online payment.
+     * Protected by auth:sanctum — only authenticated users can initiate payments.
      */
     public function checkout(Request $request): JsonResponse
     {
-        Auth::login(User::find(1));
         $userId = Auth::id();
 
         if (!$userId) {
@@ -53,8 +53,7 @@ class PaymentController extends Controller
         $description = $request->input('description', 'Lesh Kaffe Order Payment');
         $email = $request->input('email', Auth::user()->email ?? 'customer@leshkaffe.com');
         $rawContact = $request->input('contact', Auth::user()->phone ?? '9161234567');
-        $contact = preg_replace('/[^0-9]/', '', $rawContact); // Strip all non-digits
-        // Ensure 10 digits (remove country code 63 if present)
+        $contact = preg_replace('/[^0-9]/', '', $rawContact);
         if (strlen($contact) > 10 && str_starts_with($contact, '63')) {
             $contact = substr($contact, 2);
         }
@@ -77,7 +76,6 @@ class PaymentController extends Controller
         $buxAuth = config('bux.auth');
         $clientId = config('bux.client_id');
 
-        // Validate env vars are set
         if (!$buxApiKey || !$buxAuth || !$clientId) {
             \Log::error('[Payment] BUX credentials missing in .env', [
                 'has_key' => !!$buxApiKey, 'has_auth' => !!$buxAuth, 'has_client' => !!$clientId
@@ -88,10 +86,8 @@ class PaymentController extends Controller
             ], 500);
         }
 
-        // Notification URL (webhook for payment status)
-        $notificationUrl = 'http://s1102464823.onlinehome.us/api/payments/webhook';
-        $redirectUrl = 'http://s1102464823.onlinehome.us/api/payments/success';
-
+        $notificationUrl = config('app.url') . '/api/payments/webhook';
+        $redirectUrl = config('app.url') . '/api/payments/success';
 
         try {
             $dataCheckout = [
@@ -108,6 +104,7 @@ class PaymentController extends Controller
                 'param1' => $orderId,
                 'param2' => Auth::user()->name,
             ];
+
             $response = Http::withHeaders([
                 'x-api-key' => $buxApiKey,
                 'Authorization' => $buxAuth,
@@ -126,7 +123,6 @@ class PaymentController extends Controller
                         'amount' => $amount,
                         'channels' => $enabledChannels,
                         'expires_in_minutes' => 60,
-                        'raw_response' => $data,
                     ],
                     'message' => 'Checkout link generated successfully.',
                 ]);
@@ -164,7 +160,12 @@ class PaymentController extends Controller
     /**
      * POST /api/payments/webhook
      * 
-     * BUX.ph payment notification webhook
+     * BUX.ph payment notification webhook.
+     * 
+     * SECURITY:
+     * - Verifies webhook signature using HMAC-SHA256
+     * - Idempotency: Ignores duplicate req_id to prevent double-crediting
+     * - No user auth required (server-to-server)
      */
     public function webhook(Request $request): JsonResponse
     {
@@ -172,20 +173,49 @@ class PaymentController extends Controller
 
         \Log::info('[BUX Webhook] Payment notification received', $data);
 
-        // Extract payment info
+        // ─── SIGNATURE VERIFICATION ─────────────────────────────────────────
+        $signature = $data['signature'] ?? $request->header('X-Bux-Signature');
+        $webhookSecret = config('bux.webhook_secret');
+
+        if ($webhookSecret && $signature) {
+            // Verify HMAC-SHA256 signature
+            $payload = $request->getContent();
+            $expectedSignature = hash_hmac('sha256', $payload, $webhookSecret);
+
+            if (!hash_equals($expectedSignature, $signature)) {
+                \Log::warning('[BUX Webhook] Invalid signature', [
+                    'expected' => $expectedSignature,
+                    'received' => $signature,
+                ]);
+                return response()->json(['success' => false, 'message' => 'Invalid signature'], 403);
+            }
+        } elseif ($webhookSecret && !$signature) {
+            // Secret is configured but no signature provided — reject
+            \Log::warning('[BUX Webhook] Missing signature in webhook request');
+            return response()->json(['success' => false, 'message' => 'Missing signature'], 403);
+        }
+        // If no webhook_secret is configured, skip verification (dev mode)
+
+        // ─── EXTRACT PAYMENT INFO ───────────────────────────────────────────
         $extras = $data['extras'] ?? [];
         $reqId = $data['req_id'] ?? null;
         $status = $data['status'] ?? null;
         $refCode = $data['ref_code'] ?? null;
-        $signature = $data['signature'] ?? null;
         $amount = $data['amount'] ?? null;
         $fee = $extras['fee'] ?? null;
-        $param1 = $extras['param1'] ?? null;   // LK-xxxxx | TOPUP-userId-amount | SUB-userId-subId
-        $param2 = $extras['param2'] ?? null;   // customer name
+        $param1 = $extras['param1'] ?? null;
+        $param2 = $extras['param2'] ?? null;
 
         if (!$reqId || !$status || !$param1) {
             \Log::warning('[BUX Webhook] Missing required fields in webhook payload', $data);
             return response()->json(['success' => false, 'message' => 'Missing required fields'], 400);
+        }
+
+        // ─── IDEMPOTENCY CHECK ──────────────────────────────────────────────
+        $existing = ProcessedWebhook::where('req_id', $reqId)->first();
+        if ($existing) {
+            \Log::info("[BUX Webhook] Duplicate webhook ignored. req_id: {$reqId} already processed.");
+            return response()->json(['success' => true, 'message' => 'Already processed']);
         }
 
         try {
@@ -195,7 +225,6 @@ class PaymentController extends Controller
 
                 // ─── WALLET TOP-UP ───
                 if (str_starts_with($param1, 'TOPUP-')) {
-                    // param1 = TOPUP-{userId}-{amount}
                     $parts = explode('-', $param1);
                     $userId = (int) ($parts[1] ?? 0);
                     $topUpAmount = (float) ($parts[2] ?? 0);
@@ -209,7 +238,6 @@ class PaymentController extends Controller
 
                 // ─── SUBSCRIPTION PURCHASE ───
                 } elseif (str_starts_with($param1, 'SUB-')) {
-                    // param1 = SUB-{userId}-{subscriptionId}
                     $parts = explode('-', $param1);
                     $userId = (int) ($parts[1] ?? 0);
                     $subscriptionId = (int) ($parts[2] ?? 0);
@@ -239,6 +267,14 @@ class PaymentController extends Controller
                     }
                 }
 
+                // ─── RECORD PROCESSED WEBHOOK (IDEMPOTENCY) ─────────────────
+                ProcessedWebhook::create([
+                    'req_id' => $reqId,
+                    'status' => $normalizedStatus,
+                    'amount' => $amount,
+                    'ref_code' => $refCode,
+                ]);
+
             } else {
                 \Log::warning("[BUX Webhook] Payment notification received with non-successful status: {$status} for param1: {$param1}");
             }
@@ -261,7 +297,7 @@ class PaymentController extends Controller
     /**
      * GET /api/payments/success
      * 
-     * Redirect page after successful payment
+     * Redirect page after successful payment.
      */
     public function success(Request $request): JsonResponse
     {
@@ -275,11 +311,25 @@ class PaymentController extends Controller
     /**
      * GET /api/payments/status/{reqId}
      * 
-     * Check payment status
+     * Check payment status by req_id.
      */
     public function status(string $reqId): JsonResponse
     {
-        // For now return pending — integrate with BUX status check API later
+        $processed = ProcessedWebhook::where('req_id', $reqId)->first();
+
+        if ($processed) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'req_id' => $reqId,
+                    'status' => $processed->status,
+                    'amount' => $processed->amount,
+                    'ref_code' => $processed->ref_code,
+                    'processed_at' => $processed->created_at,
+                ],
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => [

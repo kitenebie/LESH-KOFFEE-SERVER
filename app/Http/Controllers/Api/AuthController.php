@@ -14,6 +14,8 @@ class AuthController extends Controller
 {
     /**
      * POST /api/auth/login
+     * 
+     * Authenticates user and returns a Sanctum Bearer token.
      */
     public function login(Request $request): JsonResponse
     {
@@ -31,39 +33,42 @@ class AuthController extends Controller
             ], 401);
         }
 
-        Auth::login($user, true);
-        Log:info('User logged in.', ['user_id' => Auth::user()]);
-        if (Auth::check()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Login successful.',
-                'data' => [
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'first_name' => $user->first_name,
-                        'email' => $user->email,
-                        'phone' => $user->phone,
-                        'avatar' => $user->avatar,
-                        'member_level' => $user->member_level,
-                        'member_level_label' => $user->member_level_label,
-                        'wallet_balance' => $user->wallet_balance,
-                        'loyalty_points' => $user->loyalty_points,
-                        'stamps_collected' => $user->stamps_collected,
-                        'stamps_required' => $user->stamps_required,
-                        'joined_date' => $user->joined_date?->format('Y-m-d'),
-                    ],
-                ],
-            ]);
-        }
+        // Revoke existing tokens for this device (optional: keeps only 1 active session)
+        $user->tokens()->where('name', 'mobile-app')->delete();
+
+        // Create new Sanctum token
+        $token = $user->createToken('mobile-app', ['*']);
+
+        Log::info('User logged in.', ['user_id' => $user->id]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'Invalid email or password.',
-        ], 401);
+            'success' => true,
+            'message' => 'Login successful.',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'first_name' => $user->first_name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'avatar' => $user->avatar,
+                    'member_level' => $user->member_level,
+                    'member_level_label' => $user->member_level_label,
+                    'wallet_balance' => $user->wallet_balance,
+                    'loyalty_points' => $user->loyalty_points,
+                    'stamps_collected' => $user->stamps_collected,
+                    'stamps_required' => $user->stamps_required,
+                    'joined_date' => $user->joined_date?->format('Y-m-d'),
+                ],
+                'token' => $token->plainTextToken,
+            ],
+        ]);
     }
 
     /**
      * POST /api/auth/register
+     * 
+     * Creates a new user account and returns a Sanctum Bearer token.
      */
     public function register(Request $request): JsonResponse
     {
@@ -90,6 +95,9 @@ class AuthController extends Controller
             'joined_date' => now()->toDateString(),
         ]);
 
+        // Create Sanctum token for the newly registered user
+        $token = $user->createToken('mobile-app', ['*']);
+
         return response()->json([
             'success' => true,
             'message' => 'Registration successful.',
@@ -107,15 +115,21 @@ class AuthController extends Controller
                     'loyalty_points' => $user->loyalty_points,
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
                 ],
+                'token' => $token->plainTextToken,
             ],
         ], 201);
     }
 
     /**
      * POST /api/auth/logout
+     * 
+     * Revokes the current access token (requires auth:sanctum).
      */
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
+        // Revoke the token used to authenticate this request
+        $request->user()->currentAccessToken()->delete();
+
         return response()->json([
             'success' => true,
             'message' => 'Logged out successfully.',

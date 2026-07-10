@@ -22,76 +22,89 @@ use App\Http\Controllers\Api\RatingController;
 | API Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register API routes for your application.
-| These routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group.
+| Routes are organized into:
+| 1. PUBLIC routes — no auth required (login, register, public catalog)
+| 2. PROTECTED routes — require auth:sanctum (user data, wallet, orders)
+| 3. WEBHOOK routes — server-to-server only (payment callbacks)
 |
 */
 
-// Auth
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/logout', [AuthController::class, 'logout']);
+// ─── PUBLIC ROUTES (no auth required) ─────────────────────────────────────────
 
-// Products
+// Auth (login/register are public; throttled to prevent brute force)
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/register', [AuthController::class, 'register']);
+});
+
+// Public catalog (read-only, no user context needed)
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
-
-// Categories
 Route::get('/categories', [CategoryController::class, 'index']);
-
-// Orders
-Route::get('/orders', [OrderController::class, 'index']);
-Route::post('/orders', [OrderController::class, 'store']);
-
-// Wallet
-Route::get('/wallet', [WalletController::class, 'index']);
-Route::post('/wallet/topup', [WalletController::class, 'topUp']);
-Route::post('/wallet/debit', [WalletController::class, 'debit']);
-
-// Loyalty
-Route::get('/loyalty/transactions', [LoyaltyController::class, 'index']);
-Route::get('/loyalty/points', [LoyaltyController::class, 'points']);
-Route::post('/loyalty/earn', [LoyaltyController::class, 'earn']);
-Route::post('/loyalty/redeem', [LoyaltyController::class, 'redeem']);
-Route::post('/loyalty/recalculate', [LoyaltyController::class, 'recalculate']);
-
-// Notifications
-Route::get('/notifications', [NotificationController::class, 'index']);
-Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-
-// Stamps
-Route::get('/stamps', [StampController::class, 'index']);
-
-// Promos
 Route::get('/promos', [PromoController::class, 'index']);
-
-// Subscriptions
 Route::get('/subscriptions', [SubscriptionController::class, 'index']);
-
-// Store
 Route::get('/store', [StoreController::class, 'index']);
 
-// User
-Route::get('/user/profile', [UserController::class, 'profile']);
-Route::put('/user/profile', [UserController::class, 'updateProfile']);
-Route::get('/user/addresses', [UserController::class, 'addresses']);
-Route::post('/user/addresses', [UserController::class, 'addAddress']);
+// ─── PROTECTED ROUTES (require valid Sanctum token) ───────────────────────────
 
-// Vouchers
-Route::get('/vouchers', [VoucherController::class, 'index']);
-Route::get('/vouchers/unclaimed', [VoucherController::class, 'unclaimed']);
-Route::get('/vouchers/claimed', [VoucherController::class, 'claimed']);
-Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
-// Payments (BUX.ph)
-Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
-Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
-Route::get('/payments/success', [PaymentController::class, 'success']);
-Route::get('/payments/status/{reqId}', [PaymentController::class, 'status']);
+    // Auth
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-// Ratings
-Route::post('/ratings', [RatingController::class, 'store']);
-Route::post('/ratings/order', [RatingController::class, 'rateOrder']);
-Route::get('/ratings/product/{id}', [RatingController::class, 'productRatings']);
-Route::get('/ratings/order/{orderId}', [RatingController::class, 'orderRatings']);
+    // User Profile
+    Route::get('/user/profile', [UserController::class, 'profile']);
+    Route::put('/user/profile', [UserController::class, 'updateProfile']);
+    Route::get('/user/addresses', [UserController::class, 'addresses']);
+    Route::post('/user/addresses', [UserController::class, 'addAddress']);
+
+    // Orders
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store']);
+
+    // Wallet (read balance + debit only — top-up is done via webhook)
+    Route::get('/wallet', [WalletController::class, 'index']);
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::post('/wallet/debit', [WalletController::class, 'debit']);
+    });
+
+    // Loyalty
+    Route::get('/loyalty/transactions', [LoyaltyController::class, 'index']);
+    Route::get('/loyalty/points', [LoyaltyController::class, 'points']);
+    Route::post('/loyalty/earn', [LoyaltyController::class, 'earn']);
+    Route::post('/loyalty/redeem', [LoyaltyController::class, 'redeem']);
+    Route::post('/loyalty/recalculate', [LoyaltyController::class, 'recalculate']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    // Stamps
+    Route::get('/stamps', [StampController::class, 'index']);
+
+    // Vouchers
+    Route::get('/vouchers', [VoucherController::class, 'index']);
+    Route::get('/vouchers/unclaimed', [VoucherController::class, 'unclaimed']);
+    Route::get('/vouchers/claimed', [VoucherController::class, 'claimed']);
+    Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
+
+    // Payments (initiate checkout — requires authenticated user)
+    Route::middleware('throttle:6,1')->group(function () {
+        Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
+    });
+    Route::get('/payments/status/{reqId}', [PaymentController::class, 'status']);
+
+    // Ratings
+    Route::post('/ratings', [RatingController::class, 'store']);
+    Route::post('/ratings/order', [RatingController::class, 'rateOrder']);
+    Route::get('/ratings/product/{id}', [RatingController::class, 'productRatings']);
+    Route::get('/ratings/order/{orderId}', [RatingController::class, 'orderRatings']);
+});
+
+// ─── WEBHOOK ROUTES (server-to-server, no user auth) ──────────────────────────
+// BUX.ph payment webhook — verified by signature, not by user token.
+// Rate limited to prevent abuse. No IdentifyUser middleware needed.
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
+    Route::get('/payments/success', [PaymentController::class, 'success']);
+});

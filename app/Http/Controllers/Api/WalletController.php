@@ -14,6 +14,11 @@ class WalletController extends Controller
         protected WalletService $walletService
     ) {}
 
+    /**
+     * GET /api/wallet
+     * 
+     * Returns the authenticated user's wallet balance and transaction history.
+     */
     public function index(): JsonResponse
     {
         $userId = Auth::id();
@@ -48,39 +53,12 @@ class WalletController extends Controller
         ]);
     }
 
-    public function topUp(Request $request): JsonResponse
-    {
-        $userId = Auth::id();
-
-        if (!$userId) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-        }
-
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'description' => 'nullable|string',
-        ]);
-
-        $transaction = $this->walletService->topUp(
-            $userId,
-            (float) $request->input('amount'),
-            $request->input('description', 'Wallet Top-Up')
-        );
-
-        // Return updated wallet
-        $data = $this->walletService->getWallet($userId);
-        $wallet = $data['wallet'];
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'balance' => $wallet?->balance ?? 0,
-                'transaction' => $transaction,
-            ],
-            'message' => 'Top-up successful.',
-        ]);
-    }
-
+    /**
+     * POST /api/wallet/debit
+     * 
+     * Debit from user's wallet for a purchase.
+     * Protected by auth:sanctum + rate limiting.
+     */
     public function debit(Request $request): JsonResponse
     {
         $userId = Auth::id();
@@ -91,7 +69,7 @@ class WalletController extends Controller
 
         $request->validate([
             'amount' => 'required|numeric|min:1',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -120,4 +98,14 @@ class WalletController extends Controller
             ], 422);
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // NOTE: The topUp() method has been REMOVED from this controller.
+    //
+    // Wallet top-ups are now ONLY processed via the BUX.ph payment webhook
+    // (PaymentController@webhook) after a verified payment is confirmed.
+    //
+    // This prevents the security vulnerability where anyone could call
+    // POST /api/wallet/topup with any amount and any user ID.
+    // ──────────────────────────────────────────────────────────────────────────
 }
