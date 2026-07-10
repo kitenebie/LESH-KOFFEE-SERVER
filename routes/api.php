@@ -47,7 +47,7 @@ Route::get('/store', [StoreController::class, 'index']);
 
 // ─── PROTECTED ROUTES (require valid Sanctum token) ───────────────────────────
 
-Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
 
     // Auth
     Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -89,7 +89,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
 
     // Payments (initiate checkout — requires authenticated user)
-    Route::middleware('throttle:6,1')->group(function () {
+    Route::middleware('throttle:30,1')->group(function () {
         Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
     });
     Route::get('/payments/status/{reqId}', [PaymentController::class, 'status']);
