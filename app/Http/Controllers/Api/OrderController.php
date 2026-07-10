@@ -40,12 +40,19 @@ class OrderController extends Controller
 
         $data = array_merge($request->all(), ['user_id' => $userId]);
 
-        $order = $this->orderService->createOrder($data);
+        try {
+            $order = $this->orderService->createOrder($data);
 
-        return response()->json([
-            'success' => true,
-            'data' => $order,
-            'message' => 'Order created successfully.',
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'data' => $order,
+                'message' => 'Order created successfully.',
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }
