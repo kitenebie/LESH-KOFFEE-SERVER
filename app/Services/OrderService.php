@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\WalletRepositoryInterface;
 use App\Models\Product;
+use App\Models\LeshPoints;
 use App\Models\ProductCustomization;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +59,9 @@ class OrderService
 
         // ─── NON-WALLET PAYMENT: Just create the order ──────────────────────
         if ($paymentMethod !== 'wallet' || $total <= 0) {
-            return $this->orderRepository->create($data);
+            $order = $this->orderRepository->create($data);
+            $this->awardLoyaltyPointsForOrder($userId, $items);
+            return $order;
         }
 
         // ─── WALLET PAYMENT: Atomic debit + order creation ──────────────────
@@ -97,6 +100,9 @@ class OrderService
             // Create the order
             $order = $this->orderRepository->create($data);
 
+            // Award loyalty points
+            $this->awardLoyaltyPointsForOrder($userId, $items);
+
             Log::info('[Order] Wallet payment successful', [
                 'user_id' => $userId,
                 'order_number' => $orderNumber,
@@ -106,6 +112,40 @@ class OrderService
 
             return $order;
         });
+    }
+
+    /**
+     * Award loyalty points for each product in the order.
+     * Uses the product's `loyalty_points` column (set by admin).
+     */
+    private function awardLoyaltyPointsForOrder(int $userId, array $items): void
+    {
+        if (empty($items)) return;
+
+        $productIds = array_filter(array_column($items, 'product_id'));
+        if (empty($productIds)) return;
+
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
+        $totalPoints = 0;
+        foreach ($items as $item) {
+            $product = $products->get($item['product_id'] ?? null);
+            if (!$product || $product->loyalty_points <= 0) continue;
+
+            $quantity = (int) ($item['quantity'] ?? 1);
+            $totalPoints += $product->loyalty_points * $quantity;
+        }
+
+        if ($totalPoints <= 0) return;
+
+        // Award points
+        $leshPoints = LeshPoints::firstOrCreate(['user_id' => $userId], ['balance' => 0, 'is_active' => true]);
+        $leshPoints->earn($totalPoints, "Order purchase reward (+{$totalPoints} pts)");
+
+        Log::info("[Loyalty] Points awarded for order", [
+            'user_id' => $userId,
+            'points' => $totalPoints,
+        ]);
     }
 
     /**

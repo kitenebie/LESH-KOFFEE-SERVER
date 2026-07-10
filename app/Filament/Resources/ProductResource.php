@@ -68,6 +68,16 @@ class ProductResource extends Resource
                         \Filament\Forms\Components\Toggle::make('is_popular')
                             ->label('Popular')
                     ])->columns(2),
+
+                \Filament\Schemas\Components\Section::make('Loyalty')
+                    ->schema([
+                        \Filament\Forms\Components\TextInput::make('loyalty_points')
+                            ->label('Loyalty Points Earned')
+                            ->helperText('Points awarded to customer when they purchase this product')
+                            ->numeric()
+                            ->default(0)
+                            ->minValue(0),
+                    ]),
             ]);
     }
 
@@ -95,6 +105,9 @@ class ProductResource extends Resource
                 \Filament\Tables\Columns\IconColumn::make('is_popular')
                     ->boolean()
                     ->label('Popular')
+                ,\Filament\Tables\Columns\TextColumn::make('loyalty_points')
+                    ->label('LP')
+                    ->sortable(),
             ])
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('category')

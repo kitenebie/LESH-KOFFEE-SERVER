@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\LeshWallet;
 use App\Models\Order;
 use App\Models\ProcessedWebhook;
+use App\Models\LeshPoints;
+use App\Models\TopupLoyaltyTier;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -222,6 +225,14 @@ class PaymentController extends Controller
                         $wallet->credit($topUpAmount, "Online Top-Up (Ref: {$refCode})");
 
                         \Log::info("[BUX Webhook] Wallet top-up successful. userId: {$userId}, amount: {$topUpAmount}, ref: {$refCode}");
+
+                        // Award loyalty points based on top-up tier
+                        $loyaltyPoints = TopupLoyaltyTier::getPointsForAmount($topUpAmount);
+                        if ($loyaltyPoints > 0) {
+                            $leshPoints = LeshPoints::firstOrCreate(['user_id' => $userId], ['balance' => 0, 'is_active' => true]);
+                            $leshPoints->earn($loyaltyPoints, "Wallet Top-Up Reward (₱{$topUpAmount} → +{$loyaltyPoints} pts)");
+                            \Log::info("[BUX Webhook] Loyalty points awarded for top-up. userId: {$userId}, points: {$loyaltyPoints}");
+                        }
                     }
 
                 // ─── SUBSCRIPTION PURCHASE ───
@@ -233,6 +244,14 @@ class PaymentController extends Controller
                     if ($userId && $subscriptionId) {
                         User::where('id', $userId)->update(['active_subscription_id' => $subscriptionId]);
                         \Log::info("[BUX Webhook] Subscription activated. userId: {$userId}, subscriptionId: {$subscriptionId}, ref: {$refCode}");
+
+                        // Award loyalty points from subscription's loyalty_points column
+                        $subscription = Subscription::find($subscriptionId);
+                        if ($subscription && $subscription->loyalty_points > 0) {
+                            $leshPoints = LeshPoints::firstOrCreate(['user_id' => $userId], ['balance' => 0, 'is_active' => true]);
+                            $leshPoints->earn($subscription->loyalty_points, "Subscription \"{$subscription->name}\" Reward (+{$subscription->loyalty_points} pts)");
+                            \Log::info("[BUX Webhook] Loyalty points awarded for subscription. userId: {$userId}, points: {$subscription->loyalty_points}");
+                        }
                     }
 
                 // ─── ORDER PAYMENT ───

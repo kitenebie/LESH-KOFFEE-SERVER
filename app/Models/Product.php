@@ -18,6 +18,7 @@ class Product extends Model
         'reviews',
         'is_popular',
         'is_customizable',
+        'loyalty_points',
         'image',
     ];
 
@@ -27,6 +28,7 @@ class Product extends Model
         'reviews' => 'integer',
         'is_popular' => 'boolean',
         'is_customizable' => 'boolean',
+        'loyalty_points' => 'integer',
     ];
 
     public function category()

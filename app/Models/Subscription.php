@@ -14,6 +14,7 @@ class Subscription extends Model
         'description',
         'price',
         'drinks',
+        'loyalty_points',
         'icon',
         'is_active',
     ];
@@ -21,6 +22,7 @@ class Subscription extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'drinks' => 'integer',
+        'loyalty_points' => 'integer',
         'is_active' => 'boolean',
     ];
 
