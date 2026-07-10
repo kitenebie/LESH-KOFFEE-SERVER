@@ -89,8 +89,8 @@ class PaymentController extends Controller
         }
 
         // Notification URL (webhook for payment status)
-        $notificationUrl = 'https://dark-paths-pick.loca.lt/api/payments/webhook';
-        $redirectUrl = 'https://dark-paths-pick.loca.lt/api/payments/success';
+        $notificationUrl = 'http://s1102464823.onlinehome.us/api/payments/webhook';
+        $redirectUrl = 'http://s1102464823.onlinehome.us/api/payments/success';
 
 
         try {
