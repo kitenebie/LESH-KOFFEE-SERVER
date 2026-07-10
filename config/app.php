@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | API Request Signing Key
+    |--------------------------------------------------------------------------
+    |
+    | Used for HMAC-SHA256 request signature verification.
+    | The mobile app signs every request with this key.
+    | Set to null to disable signature verification (dev mode).
+    |
+    */
+
+    'signing_key' => env('APP_SIGNING_KEY'),
+
 ];

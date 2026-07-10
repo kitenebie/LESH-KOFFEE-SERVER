@@ -47,7 +47,7 @@ Route::get('/store', [StoreController::class, 'index']);
 
 // ─── PROTECTED ROUTES (require valid Sanctum token) ───────────────────────────
 
-Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
+Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::class, 'throttle:300,1'])->group(function () {
 
     // Auth
     Route::post('/auth/logout', [AuthController::class, 'logout']);
