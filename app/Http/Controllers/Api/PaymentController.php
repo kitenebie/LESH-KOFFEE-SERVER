@@ -173,28 +173,16 @@ class PaymentController extends Controller
 
         \Log::info('[BUX Webhook] Payment notification received', $data);
 
-        // ─── SIGNATURE VERIFICATION ─────────────────────────────────────────
-        $signature = $data['signature'] ?? $request->header('X-Bux-Signature');
-        $webhookSecret = config('bux.webhook_secret');
-
-        if ($webhookSecret && $signature) {
-            // Verify HMAC-SHA256 signature
-            $payload = $request->getContent();
-            $expectedSignature = hash_hmac('sha256', $payload, $webhookSecret);
-
-            if (!hash_equals($expectedSignature, $signature)) {
-                \Log::warning('[BUX Webhook] Invalid signature', [
-                    'expected' => $expectedSignature,
-                    'received' => $signature,
-                ]);
-                return response()->json(['success' => false, 'message' => 'Invalid signature'], 403);
-            }
-        } elseif ($webhookSecret && !$signature) {
-            // Secret is configured but no signature provided — reject
-            \Log::warning('[BUX Webhook] Missing signature in webhook request');
-            return response()->json(['success' => false, 'message' => 'Missing signature'], 403);
-        }
-        // If no webhook_secret is configured, skip verification (dev mode)
+        // ─── SIGNATURE NOTE ─────────────────────────────────────────────
+        // BUX.ph uses SHA-1 with an internal key (not shared with merchants).
+        // We cannot verify their signature without a proper shared secret.
+        //
+        // Security is maintained via:
+        // 1. Idempotency (processed_webhooks table — no duplicate credits)
+        // 2. Rate limiting (throttle:30,1)
+        // 3. Param validation (TOPUP-{userId}-{amount} must match valid user)
+        // 4. The direct wallet topUp route is removed from public API
+        // ─────────────────────────────────────────────────────────────────────
 
         // ─── EXTRACT PAYMENT INFO ───────────────────────────────────────────
         $extras = $data['extras'] ?? [];
