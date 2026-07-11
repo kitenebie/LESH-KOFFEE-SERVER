@@ -21,7 +21,6 @@ class User extends Authenticatable
         'member_level',
         'member_level_label',
         'wallet_balance',
-        'loyalty_points',
         'stamps_collected',
         'stamps_required',
         'subscription_balance',
@@ -31,6 +30,19 @@ class User extends Authenticatable
         'longitude',
     ];
 
+    /**
+     * Get loyalty points from the LeshPoints relationship (source of truth).
+     * Overrides the stale `loyalty_points` column on the users table.
+     */
+    public function getLoyaltyPointsAttribute(): int
+    {
+        // If leshPoints relationship is loaded, use it; otherwise query fresh
+        if ($this->relationLoaded('leshPoints') && $this->leshPoints) {
+            return (int) $this->leshPoints->balance;
+        }
+        return (int) ($this->leshPoints()?->first()?->balance ?? 0);
+    }
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -38,7 +50,6 @@ class User extends Authenticatable
 
     protected $casts = [
         'wallet_balance' => 'decimal:2',
-        'loyalty_points' => 'integer',
         'stamps_collected' => 'integer',
         'stamps_required' => 'integer',
         'subscription_balance' => 'integer',

@@ -24,7 +24,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->input('email'))->first();
+        $user = User::with('leshPoints')->where('email', $request->input('email'))->first();
 
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             return response()->json([
@@ -153,6 +153,8 @@ class AuthController extends Controller
                 'message' => 'Invalid or expired token.',
             ], 401);
         }
+
+        $user->load('leshPoints');
 
         return response()->json([
             'success' => true,

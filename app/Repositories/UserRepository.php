@@ -10,7 +10,7 @@ class UserRepository implements UserRepositoryInterface
 {
     public function getProfile(int $userId)
     {
-        return User::with(['activeSubscription', 'leshWallet'])->findOrFail($userId);
+        return User::with(['activeSubscription', 'leshWallet', 'leshPoints'])->findOrFail($userId);
     }
 
     public function updateProfile(int $userId, array $data)
@@ -18,7 +18,7 @@ class UserRepository implements UserRepositoryInterface
         $user = User::findOrFail($userId);
         $user->update($data);
 
-        return $user->fresh(['activeSubscription', 'leshWallet']);
+        return $user->fresh(['activeSubscription', 'leshWallet', 'leshPoints']);
     }
 
     public function getAddresses(int $userId)
