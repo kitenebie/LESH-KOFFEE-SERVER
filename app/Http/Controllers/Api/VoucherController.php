@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Auth;
 class VoucherController extends Controller
 {
     /**
-     * Get all user vouchers
+     * Get all user vouchers (active only — not expired, not used)
      */
     public function index(): JsonResponse
     {
@@ -23,6 +23,7 @@ class VoucherController extends Controller
         }
 
         $vouchers = UserVoucher::where('user_id', $userId)
+            ->active()
             ->with('voucher')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -63,7 +64,7 @@ class VoucherController extends Controller
     }
 
     /**
-     * Get claimed vouchers for the user
+     * Get claimed vouchers for the user (active only — not expired, not used)
      */
     public function claimed(): JsonResponse
     {
@@ -74,6 +75,7 @@ class VoucherController extends Controller
         }
 
         $claimedVouchers = UserVoucher::where('user_id', $userId)
+            ->active()
             ->with('voucher')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -85,7 +87,7 @@ class VoucherController extends Controller
     }
 
     /**
-     * Claim a voucher for the user
+     * Claim a voucher for the user (by ID)
      */
     public function claim(int $id): JsonResponse
     {
@@ -118,13 +120,18 @@ class VoucherController extends Controller
             ], 409);
         }
 
+        // Calculate expiration
+        $expiresAt = $voucher->valid_hours
+            ? now()->addHours($voucher->valid_hours)
+            : now()->addDays(30);
+
         // Create the user voucher (claim it)
         $userVoucher = UserVoucher::create([
             'user_id' => $userId,
             'voucher_id' => $voucher->id,
             'code' => $voucher->code,
             'description' => $voucher->label,
-            'expires_at' => now()->addDays(30),
+            'expires_at' => $expiresAt,
             'is_used' => false,
         ]);
 
@@ -180,13 +187,18 @@ class VoucherController extends Controller
             ], 409);
         }
 
+        // Calculate expiration
+        $expiresAt = $voucher->valid_hours
+            ? now()->addHours($voucher->valid_hours)
+            : now()->addDays(30);
+
         // Claim it
         $userVoucher = UserVoucher::create([
             'user_id' => $userId,
             'voucher_id' => $voucher->id,
             'code' => $voucher->code,
             'description' => $voucher->label,
-            'expires_at' => now()->addDays(30),
+            'expires_at' => $expiresAt,
             'is_used' => false,
         ]);
 

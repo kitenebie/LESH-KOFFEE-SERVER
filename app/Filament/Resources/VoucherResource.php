@@ -45,13 +45,37 @@ class VoucherResource extends Resource
                         \Filament\Forms\Components\TextInput::make('discount')
                             ->numeric()
                             ->required()
-                            ->helperText('e.g. 0.2 for 20% or 50 for ₱50 fixed'),
+                            ->helperText('For percent: 0.20 = 20%. For fixed: 300 = ₱300'),
                         \Filament\Forms\Components\TextInput::make('label')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('Display name shown to customers'),
                         \Filament\Forms\Components\Toggle::make('is_active')
                             ->label('Active')
                             ->default(true),
+                    ])->columns(2),
+
+                \Filament\Schemas\Components\Section::make('Conditions & Limits')
+                    ->description('Set requirements for when this voucher can be applied.')
+                    ->schema([
+                        \Filament\Forms\Components\TextInput::make('min_order_amount')
+                            ->label('Minimum Order Amount')
+                            ->numeric()
+                            ->nullable()
+                            ->prefix('₱')
+                            ->helperText('Minimum order total required to use this voucher (leave empty for no minimum)'),
+                        \Filament\Forms\Components\TextInput::make('max_discount')
+                            ->label('Maximum Discount Cap')
+                            ->numeric()
+                            ->nullable()
+                            ->prefix('₱')
+                            ->helperText('Maximum discount cap for percentage vouchers (leave empty for no cap)'),
+                        \Filament\Forms\Components\TextInput::make('valid_hours')
+                            ->label('Valid Hours After Claiming')
+                            ->numeric()
+                            ->nullable()
+                            ->suffix('hours')
+                            ->helperText('How many hours the voucher is valid after a user claims it. Leave empty for 30-day default.'),
                     ])->columns(2),
             ]);
     }
@@ -70,9 +94,22 @@ class VoucherResource extends Resource
                         'success' => 'fixed',
                     ]),
                 \Filament\Tables\Columns\TextColumn::make('discount')
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(fn ($record) => $record->type === 'percent'
+                        ? (($record->discount * 100) . '%')
+                        : ('₱' . number_format($record->discount, 2))
+                    ),
                 \Filament\Tables\Columns\TextColumn::make('label')
-                    ->limit(40),
+                    ->limit(30),
+                \Filament\Tables\Columns\TextColumn::make('min_order_amount')
+                    ->label('Min Order')
+                    ->money('PHP')
+                    ->placeholder('None')
+                    ->sortable(),
+                \Filament\Tables\Columns\TextColumn::make('valid_hours')
+                    ->label('Validity')
+                    ->formatStateUsing(fn ($state) => $state ? "{$state}h" : '30 days')
+                    ->sortable(),
                 \Filament\Tables\Columns\IconColumn::make('is_active')
                     ->boolean()
                     ->label('Active'),

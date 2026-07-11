@@ -7,6 +7,8 @@ use App\Repositories\Interfaces\WalletRepositoryInterface;
 use App\Models\Product;
 use App\Models\LeshPoints;
 use App\Models\ProductCustomization;
+use App\Models\Voucher;
+use App\Models\UserVoucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -52,20 +54,26 @@ class OrderService
         $items = $data['items'] ?? [];
 
         // ─── SERVER-SIDE PRICE RECALCULATION ───────────────────────────────
-        $recalculated = $this->recalculateOrderTotal($items, (float) ($data['delivery_fee'] ?? 0), (float) ($data['discount'] ?? 0));
+        $recalculated = $this->recalculateOrderTotal($items, (float) ($data['delivery_fee'] ?? 0), 0);
         $data['subtotal'] = $recalculated['subtotal'];
-        $data['total'] = $recalculated['total'];
-        $total = $recalculated['total'];
+
+        // ─── SERVER-SIDE VOUCHER VALIDATION ────────────────────────────────
+        $voucherCodes = $data['voucherCode'] ?? null;
+        $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $recalculated['subtotal']);
+        $data['discount'] = $voucherResult['total_discount'];
+        $data['total'] = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $voucherResult['total_discount'], 2));
+        $total = $data['total'];
 
         // ─── NON-WALLET PAYMENT: Just create the order ──────────────────────
         if ($paymentMethod !== 'wallet' || $total <= 0) {
             $order = $this->orderRepository->create($data);
             $this->awardLoyaltyPointsForOrder($userId, $items);
+            $this->markVouchersAsUsed($voucherResult['used_voucher_ids']);
             return $order;
         }
 
         // ─── WALLET PAYMENT: Atomic debit + order creation ──────────────────
-        return DB::transaction(function () use ($data, $userId, $total) {
+        return DB::transaction(function () use ($data, $userId, $total, $items, $voucherResult) {
 
             // Lock the wallet row to prevent race conditions (double-spend)
             $wallet = DB::table('lesh_wallets')
@@ -102,6 +110,7 @@ class OrderService
 
             // Award loyalty points
             $this->awardLoyaltyPointsForOrder($userId, $items);
+            $this->markVouchersAsUsed($voucherResult['used_voucher_ids']);
 
             Log::info('[Order] Wallet payment successful', [
                 'user_id' => $userId,
@@ -214,5 +223,77 @@ class OrderService
             'discount' => $discount,
             'total' => $total,
         ];
+    }
+
+    /**
+     * Validate voucher codes and calculate the total discount.
+     * 
+     * @param int $userId
+     * @param string|null $voucherCodes — comma-separated codes from frontend
+     * @param float $subtotal — server-recalculated subtotal
+     * @return array { total_discount, used_voucher_ids, applied_codes }
+     */
+    private function validateAndApplyVouchers(int $userId, ?string $voucherCodes, float $subtotal): array
+    {
+        $result = ['total_discount' => 0, 'used_voucher_ids' => [], 'applied_codes' => []];
+
+        if (!$voucherCodes || trim($voucherCodes) === '') {
+            return $result;
+        }
+
+        $codes = array_filter(array_map('trim', explode(',', $voucherCodes)));
+
+        foreach ($codes as $code) {
+            $code = strtoupper($code);
+
+            // Find the voucher
+            $voucher = Voucher::where('code', $code)->where('is_active', true)->first();
+            if (!$voucher) {
+                Log::warning("[Order] Voucher code not found or inactive: {$code}");
+                continue;
+            }
+
+            // Find user's claimed voucher record
+            $userVoucher = UserVoucher::where('user_id', $userId)
+                ->where('voucher_id', $voucher->id)
+                ->where('is_used', false)
+                ->first();
+
+            if (!$userVoucher) {
+                Log::warning("[Order] User {$userId} has no active claim for voucher: {$code}");
+                continue;
+            }
+
+            // Check expiration
+            if ($userVoucher->isExpired()) {
+                Log::warning("[Order] Voucher expired for user {$userId}: {$code}");
+                continue;
+            }
+
+            // Check min order amount
+            if (!$voucher->isApplicableTo($subtotal)) {
+                Log::warning("[Order] Subtotal {$subtotal} below min_order_amount for voucher: {$code}");
+                continue;
+            }
+
+            // Calculate discount
+            $discount = $voucher->getDiscountAmount($subtotal);
+            $result['total_discount'] += $discount;
+            $result['used_voucher_ids'][] = $userVoucher->id;
+            $result['applied_codes'][] = $code;
+        }
+
+        $result['total_discount'] = round($result['total_discount'], 2);
+        return $result;
+    }
+
+    /**
+     * Mark user vouchers as used after successful order.
+     */
+    private function markVouchersAsUsed(array $userVoucherIds): void
+    {
+        if (empty($userVoucherIds)) return;
+
+        UserVoucher::whereIn('id', $userVoucherIds)->update(['is_used' => true]);
     }
 }
