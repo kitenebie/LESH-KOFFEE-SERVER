@@ -24,6 +24,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Register model observers
+        \App\Models\LoyaltyTransaction::observe(\App\Observers\LoyaltyTransactionObserver::class);
     }
 
     /**
