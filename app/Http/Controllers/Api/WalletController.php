@@ -33,11 +33,27 @@ class WalletController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        $wallet = $this->walletService->getWallet($userId);
+        $data = $this->walletService->getWallet($userId);
+        $wallet = $data['wallet'];
+        $transactions = $data['transactions'];
 
         return response()->json([
             'success' => true,
-            'data' => $wallet,
+            'data' => [
+                'id' => $wallet?->id,
+                'user_id' => $wallet?->user_id,
+                'balance' => (float) ($wallet?->balance ?? 0),
+                'currency' => 'PHP',
+                'is_active' => $wallet?->is_active ?? true,
+                'transactions' => $transactions->map(fn($t) => [
+                    'id' => $t->id,
+                    'type' => $t->type,
+                    'amount' => (float) $t->amount,
+                    'description' => $t->description,
+                    'transaction_date' => $t->transaction_date?->format('m/d/Y'),
+                    'created_at' => $t->created_at,
+                ]),
+            ],
         ]);
     }
 
@@ -126,20 +142,20 @@ class WalletController extends Controller
                 // Record transactions on both sides
                 WalletTransaction::create([
                     'user_id' => $senderId,
-                    'lesh_wallet_id' => $senderWallet->id,
-                    'type' => 'transfer_out',
+                    'wallet_id' => $senderWallet->id,
+                    'type' => 'debit',
                     'amount' => $amount,
                     'description' => "Sent ₱{$amount} to " . ($recipient->name ?? $recipient->phone) . ($note ? " — {$note}" : ''),
-                    'reference' => $refCode,
+                    'transaction_date' => now()->toDateString(),
                 ]);
 
                 WalletTransaction::create([
                     'user_id' => $recipient->id,
-                    'lesh_wallet_id' => $receiverWallet->id,
-                    'type' => 'transfer_in',
+                    'wallet_id' => $receiverWallet->id,
+                    'type' => 'credit',
                     'amount' => $amount,
                     'description' => "Received ₱{$amount} from " . (User::find($senderId)->name ?? 'a friend') . ($note ? " — {$note}" : ''),
-                    'reference' => $refCode,
+                    'transaction_date' => now()->toDateString(),
                 ]);
 
                 return [

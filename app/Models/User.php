@@ -20,7 +20,6 @@ class User extends Authenticatable
         'avatar',
         'member_level',
         'member_level_label',
-        'wallet_balance',
         'stamps_collected',
         'stamps_required',
         'subscription_balance',
@@ -43,13 +42,24 @@ class User extends Authenticatable
         return (int) ($this->leshPoints()?->first()?->balance ?? 0);
     }
 
+    /**
+     * Get wallet balance from the LeshWallet relationship (source of truth).
+     * Overrides the stale `wallet_balance` column on the users table.
+     */
+    public function getWalletBalanceAttribute(): float
+    {
+        if ($this->relationLoaded('leshWallet') && $this->leshWallet) {
+            return (float) $this->leshWallet->balance;
+        }
+        return (float) ($this->leshWallet()?->first()?->balance ?? 0);
+    }
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     protected $casts = [
-        'wallet_balance' => 'decimal:2',
         'stamps_collected' => 'integer',
         'stamps_required' => 'integer',
         'subscription_balance' => 'integer',
