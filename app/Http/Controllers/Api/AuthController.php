@@ -135,4 +135,45 @@ class AuthController extends Controller
             'message' => 'Logged out successfully.',
         ]);
     }
+
+    /**
+     * POST /api/auth/resume
+     * 
+     * Resume session using existing Sanctum token.
+     * Called on app startup to validate the stored token and get fresh user data.
+     * Requires auth:sanctum middleware (token in Authorization header).
+     */
+    public function resume(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired token.',
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session resumed.',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'first_name' => $user->first_name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'avatar' => $user->avatar,
+                    'member_level' => $user->member_level,
+                    'member_level_label' => $user->member_level_label,
+                    'wallet_balance' => $user->wallet_balance,
+                    'loyalty_points' => $user->loyalty_points,
+                    'stamps_collected' => $user->stamps_collected,
+                    'stamps_required' => $user->stamps_required,
+                    'joined_date' => $user->joined_date?->format('Y-m-d'),
+                ],
+            ],
+        ]);
+    }
 }

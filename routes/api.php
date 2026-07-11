@@ -51,6 +51,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
 
     // Auth
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/resume', [AuthController::class, 'resume']);
 
     // User Profile
     Route::get('/user/profile', [UserController::class, 'profile']);
