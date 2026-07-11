@@ -194,32 +194,6 @@ class WalletController extends Controller
         return '+' . $digits;
     }
 
-        $data = $this->walletService->getWallet($userId);
-        $wallet = $data['wallet'];
-        $transactions = $data['transactions'];
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $wallet?->id,
-                'user_id' => $wallet?->user_id,
-                'balance' => $wallet?->balance ?? 0,
-                'currency' => $wallet?->currency ?? 'PHP',
-                'is_active' => $wallet?->is_active ?? true,
-                'transactions' => $transactions->map(function ($t) {
-                    return [
-                        'id' => $t->id,
-                        'type' => $t->type,
-                        'amount' => $t->amount,
-                        'description' => $t->description,
-                        'transaction_date' => $t->transaction_date?->format('m/d/Y'),
-                        'created_at' => $t->created_at,
-                    ];
-                }),
-            ],
-        ]);
-    }
-
     /**
      * POST /api/wallet/debit
      * 
