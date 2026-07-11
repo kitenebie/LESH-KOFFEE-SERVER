@@ -136,4 +136,67 @@ class VoucherController extends Controller
             'data' => $userVoucher,
         ]);
     }
+
+    /**
+     * Claim a voucher by its code
+     * POST /api/vouchers/claim-by-code
+     * Body: { code: "VOUCHER_CODE" }
+     */
+    public function claimByCode(Request $request): JsonResponse
+    {
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'code' => 'required|string|max:50',
+        ]);
+
+        $code = strtoupper(trim($request->input('code')));
+
+        // Find the voucher by code
+        $voucher = Voucher::where('code', $code)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$voucher) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid voucher code. Please check and try again.',
+            ], 404);
+        }
+
+        // Check if already claimed
+        $alreadyClaimed = UserVoucher::where('user_id', $userId)
+            ->where('voucher_id', $voucher->id)
+            ->exists();
+
+        if ($alreadyClaimed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have already claimed this voucher.',
+            ], 409);
+        }
+
+        // Claim it
+        $userVoucher = UserVoucher::create([
+            'user_id' => $userId,
+            'voucher_id' => $voucher->id,
+            'code' => $voucher->code,
+            'description' => $voucher->label,
+            'expires_at' => now()->addDays(30),
+            'is_used' => false,
+        ]);
+
+        $userVoucher->load('voucher');
+
+        return response()->json([
+            'success' => true,
+            'message' => "Voucher \"{$voucher->label}\" claimed successfully!",
+            'data' => $userVoucher,
+            'voucher' => $voucher,
+        ]);
+    }
 }

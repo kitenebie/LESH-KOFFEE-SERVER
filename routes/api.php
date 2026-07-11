@@ -86,7 +86,8 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     Route::get('/vouchers', [VoucherController::class, 'index']);
     Route::get('/vouchers/unclaimed', [VoucherController::class, 'unclaimed']);
     Route::get('/vouchers/claimed', [VoucherController::class, 'claimed']);
-    Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
+Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
+Route::post('/vouchers/claim-by-code', [VoucherController::class, 'claimByCode']);
 
     // Payments (initiate checkout — requires authenticated user)
     Route::middleware('throttle:30,1')->group(function () {
