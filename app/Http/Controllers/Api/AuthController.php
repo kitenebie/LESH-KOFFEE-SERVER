@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\OtpVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,21 @@ class AuthController extends Controller
             'phone' => 'required|string|max:20',
             'password' => 'required|string|min:6',
         ]);
+
+        // Verify that the phone number was OTP-verified
+        $phone = $this->normalizePhone($request->input('phone'));
+        $otpRecord = OtpVerification::where('phone', $phone)
+            ->where('is_verified', true)
+            ->where('expires_at', '>', now()->subMinutes(10)) // verified within last 10 min
+            ->latest()
+            ->first();
+
+        if (!$otpRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phone number not verified. Please complete OTP verification first.',
+            ], 422);
+        }
 
         $user = User::create([
             'name' => $request->input('name'),
@@ -177,5 +193,26 @@ class AuthController extends Controller
                 ],
             ],
         ]);
+    }
+
+    // ─── Private Helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * Normalize phone number to +63XXXXXXXXXX format.
+     */
+    private function normalizePhone(string $phone): string
+    {
+        $cleaned = preg_replace('/[^0-9+]/', '', $phone);
+        $digits = ltrim($cleaned, '+');
+
+        if (str_starts_with($digits, '0')) {
+            $digits = '63' . substr($digits, 1);
+        }
+
+        if (!str_starts_with($digits, '63')) {
+            $digits = '63' . $digits;
+        }
+
+        return '+' . $digits;
     }
 }

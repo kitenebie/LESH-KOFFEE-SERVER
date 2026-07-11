@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\LoyaltyController;
@@ -35,6 +36,13 @@ use App\Http\Controllers\Api\RatingController;
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);
+});
+
+// OTP endpoints (public, throttled separately to prevent abuse)
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/otp/send', [OtpController::class, 'send']);
+    Route::post('/otp/verify', [OtpController::class, 'verify']);
+    Route::post('/otp/resend', [OtpController::class, 'resend']);
 });
 
 // Public catalog (read-only, no user context needed)

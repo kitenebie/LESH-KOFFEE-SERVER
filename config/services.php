@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'unisms' => [
+        'key' => env('UNISMS_API_KEY'),
+    ],
+
 ];
