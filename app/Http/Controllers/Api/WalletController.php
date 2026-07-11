@@ -31,6 +31,14 @@ class WalletController extends Controller
 
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $wallet = $this->walletService->getWallet($userId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $wallet,
+        ]);
     }
 
     /**
