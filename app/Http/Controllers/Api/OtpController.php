@@ -117,7 +117,7 @@ class OtpController extends Controller
                     'sender_id' => 'UNISOFT',
                 ],
                 'auth' => [
-                    config('services.unisms.key'),
+                    'sk_XQe6Xg5OOlit9cR5AYkLVgw5edRc3Mv2ehRsk0zKaYkLBS55Cv0cbRb1ga1QgFzNP2lWXwfAOB-mmkD5B8-1TQ-794',
                     ''
                 ],
                 'headers' => [
