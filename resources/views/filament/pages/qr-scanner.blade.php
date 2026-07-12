@@ -1,106 +1,191 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
-        {{-- Scanner Input Section --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
-                    <x-heroicon-o-qr-code class="w-6 h-6 text-primary-600 dark:text-primary-400" />
+    <div x-data="qrScannerApp()" x-init="init()" style="max-width: 900px; margin: 0 auto;">
+
+        {{-- Scanner Card --}}
+        <div style="background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <div style="padding: 10px; background: #f0fdf4; border-radius: 12px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#16a34a" style="width: 28px; height: 28px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
+                    </svg>
                 </div>
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Scan Subscription QR Code</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Paste the scanned QR code data below to process a subscription drink redemption.</p>
+                    <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin: 0;">Webcam QR Scanner</h2>
+                    <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">Point a QR code at your webcam to scan and process.</p>
                 </div>
             </div>
 
-            <form wire:submit="processRedemption" class="space-y-4">
-                <div>
-                    <label for="qr-data" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        QR Code Data (JSON)
-                    </label>
-                    <textarea
-                        id="qr-data"
-                        wire:model="qrData"
-                        rows="5"
-                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 font-mono text-sm"
-                        placeholder='{"type":"subscription_redeem","user_id":"1","subscription_id":"1","user_subscription_id":"1","timestamp":"2026-07-12T10:00:00.000Z"}'
-                    ></textarea>
-                    @error('qrData')
-                        <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
-                    @enderror
-                </div>
+            {{-- Camera View --}}
+            <div style="position: relative; width: 100%; max-width: 500px; margin: 0 auto 20px auto;">
+                <div id="qr-reader" style="width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid #d1d5db;"></div>
 
-                <div class="flex items-center gap-3">
-                    <button
-                        type="submit"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors duration-150 shadow-sm"
-                        wire:loading.attr="disabled"
-                        wire:loading.class="opacity-50 cursor-not-allowed"
-                    >
-                        <x-heroicon-m-check-circle class="w-5 h-5" />
-                        <span wire:loading.remove wire:target="processRedemption">Process Redemption</span>
-                        <span wire:loading wire:target="processRedemption">Processing...</span>
+                {{-- Scanner status overlay --}}
+                <div x-show="!scanning" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); border-radius: 12px;">
+                    <button @click="startScanner()" style="padding: 14px 28px; background: #16a34a; color: white; font-weight: 600; font-size: 15px; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
+                        Start Camera
                     </button>
-
-                    @if($qrData)
-                        <button
-                            type="button"
-                            wire:click="$set('qrData', '')"
-                            class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors duration-150"
-                        >
-                            <x-heroicon-m-x-mark class="w-4 h-4" />
-                            Clear
-                        </button>
-                    @endif
                 </div>
-            </form>
+            </div>
+
+            {{-- Controls --}}
+            <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 16px;">
+                <button x-show="scanning" @click="stopScanner()" style="padding: 10px 20px; background: #ef4444; color: white; font-weight: 600; font-size: 13px; border: none; border-radius: 8px; cursor: pointer;">
+                    Stop Camera
+                </button>
+            </div>
+
+            {{-- Manual Input Fallback --}}
+            <details style="margin-top: 12px;">
+                <summary style="font-size: 13px; color: #6b7280; cursor: pointer; user-select: none;">Manual JSON Input (fallback)</summary>
+                <div style="margin-top: 10px;">
+                    <textarea
+                        x-model="manualInput"
+                        rows="3"
+                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 12px; resize: vertical;"
+                        placeholder='{"type":"subscription_redeem","user_id":"1","subscription_id":"1","user_subscription_id":"1"}'
+                    ></textarea>
+                    <button @click="processManual()" style="margin-top: 8px; padding: 8px 16px; background: #4f46e5; color: white; font-weight: 600; font-size: 13px; border: none; border-radius: 8px; cursor: pointer;">
+                        Process Manual Input
+                    </button>
+                </div>
+            </details>
+        </div>
+
+        {{-- Scanned Result --}}
+        <div x-show="scannedData" x-transition style="background: #f0fdf4; border-radius: 16px; border: 1px solid #bbf7d0; padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#16a34a" style="width: 24px; height: 24px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span style="font-size: 16px; font-weight: 700; color: #166534;">QR Code Detected!</span>
+            </div>
+            <pre x-text="scannedData" style="background: white; padding: 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; border: 1px solid #dcfce7; margin-bottom: 16px;"></pre>
+
+            <div style="display: flex; gap: 10px;">
+                <button @click="submitToServer()" :disabled="processing" style="padding: 12px 24px; background: #16a34a; color: white; font-weight: 600; font-size: 14px; border: none; border-radius: 10px; cursor: pointer; opacity: 1;" :style="processing && 'opacity: 0.5; cursor: not-allowed;'">
+                    <span x-text="processing ? 'Processing...' : '✓ Confirm Redemption'"></span>
+                </button>
+                <button @click="scannedData = ''" style="padding: 12px 24px; background: #f3f4f6; color: #374151; font-weight: 600; font-size: 14px; border: 1px solid #d1d5db; border-radius: 10px; cursor: pointer;">
+                    Cancel
+                </button>
+            </div>
         </div>
 
         {{-- Last Redemption Result --}}
         @if($lastResult)
-            <div class="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="p-2 bg-green-100 dark:bg-green-900/40 rounded-full">
-                        <x-heroicon-o-check-badge class="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div style="background: #ecfdf5; border-radius: 16px; border: 1px solid #a7f3d0; padding: 24px; margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 700; color: #065f46; margin: 0 0 16px 0;">✅ Last Redemption Successful</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                    <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid #d1fae5;">
+                        <p style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0;">Order Number</p>
+                        <p style="font-size: 14px; font-weight: 700; color: #111827; margin: 6px 0 0 0;">{{ $lastResult['order_number'] }}</p>
                     </div>
-                    <h3 class="text-lg font-semibold text-green-800 dark:text-green-200">Last Redemption Successful</h3>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order Number</p>
-                        <p class="text-sm font-bold text-gray-900 dark:text-white mt-1">{{ $lastResult['order_number'] }}</p>
+                    <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid #d1fae5;">
+                        <p style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0;">Subscription</p>
+                        <p style="font-size: 14px; font-weight: 700; color: #111827; margin: 6px 0 0 0;">{{ $lastResult['subscription_name'] }}</p>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Subscription</p>
-                        <p class="text-sm font-bold text-gray-900 dark:text-white mt-1">{{ $lastResult['subscription_name'] }}</p>
+                    <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid #d1fae5;">
+                        <p style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0;">Drinks Remaining</p>
+                        <p style="font-size: 14px; font-weight: 700; color: #16a34a; margin: 6px 0 0 0;">{{ $lastResult['drinks_remaining'] }}</p>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Drinks Remaining</p>
-                        <p class="text-sm font-bold text-green-600 dark:text-green-400 mt-1">{{ $lastResult['drinks_remaining'] }}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Used</p>
-                        <p class="text-sm font-bold text-gray-900 dark:text-white mt-1">{{ $lastResult['drinks_used'] }}</p>
+                    <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid #d1fae5;">
+                        <p style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0;">Total Used</p>
+                        <p style="font-size: 14px; font-weight: 700; color: #111827; margin: 6px 0 0 0;">{{ $lastResult['drinks_used'] }}</p>
                     </div>
                 </div>
             </div>
         @endif
-
-        {{-- Instructions Card --}}
-        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-6">
-            <div class="flex items-start gap-3">
-                <x-heroicon-o-information-circle class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                <div>
-                    <h4 class="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">How it works</h4>
-                    <ol class="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                        <li>Customer shows their subscription QR code from the Lesh Kaffe app.</li>
-                        <li>Scan the QR code using a barcode scanner or camera app.</li>
-                        <li>Paste the decoded JSON data into the text field above.</li>
-                        <li>Click "Process Redemption" to deduct one drink and create the order.</li>
-                        <li>Confirm the success message and prepare the customer's drink!</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
     </div>
+
+    {{-- html5-qrcode CDN --}}
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        function qrScannerApp() {
+            return {
+                scanning: false,
+                scannedData: '',
+                manualInput: '',
+                processing: false,
+                scanner: null,
+
+                init() {
+                    // Pre-warm
+                },
+
+                async startScanner() {
+                    try {
+                        this.scanner = new Html5Qrcode("qr-reader");
+
+                        await this.scanner.start(
+                            { facingMode: "environment" },
+                            {
+                                fps: 10,
+                                qrbox: { width: 250, height: 250 },
+                                aspectRatio: 1.0,
+                            },
+                            (decodedText) => {
+                                // Success callback
+                                this.scannedData = decodedText;
+                                this.stopScanner();
+
+                                // Audio feedback
+                                try {
+                                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                    const osc = ctx.createOscillator();
+                                    osc.type = 'sine';
+                                    osc.frequency.value = 880;
+                                    osc.connect(ctx.destination);
+                                    osc.start();
+                                    setTimeout(() => osc.stop(), 150);
+                                } catch(e) {}
+                            },
+                            (errorMessage) => {
+                                // Ignore scan errors (no QR in frame)
+                            }
+                        );
+
+                        this.scanning = true;
+                    } catch (err) {
+                        alert('Camera error: ' + err.message + '\n\nMake sure you allow camera access and are on HTTPS.');
+                    }
+                },
+
+                async stopScanner() {
+                    if (this.scanner && this.scanning) {
+                        try {
+                            await this.scanner.stop();
+                        } catch (e) {}
+                        this.scanning = false;
+                    }
+                },
+
+                processManual() {
+                    if (this.manualInput.trim()) {
+                        this.scannedData = this.manualInput.trim();
+                    }
+                },
+
+                async submitToServer() {
+                    this.processing = true;
+
+                    // Set the Livewire property and call the method
+                    @this.set('qrData', this.scannedData);
+
+                    await @this.call('processRedemption');
+
+                    this.processing = false;
+                    this.scannedData = '';
+
+                    // Restart scanner after short delay
+                    setTimeout(() => {
+                        if (!this.scanning) {
+                            this.startScanner();
+                        }
+                    }, 2000);
+                }
+            };
+        }
+    </script>
 </x-filament-panels::page>
