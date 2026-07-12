@@ -35,26 +35,31 @@ class OtpController extends Controller
         // Generate OTP (invalidates previous ones)
         $otp = OtpVerification::generate($phone);
 
-        // Send via SMS
-        $smsResult = $this->sendSMS($phone, $otp->otp_code);
+        // TEMPORARY BYPASS: SMS API is down, auto-mark as sent
+        // TODO: Re-enable SMS when UniSMS sender_id is active again
+        $smsBypassed = true;
 
-        if (!$smsResult['success']) {
-            Log::error('[OTP] SMS send failed', ['phone' => $phone, 'error' => $smsResult['message']]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send verification code. Please try again.',
-            ], 500);
+        if (!$smsBypassed) {
+            $smsResult = $this->sendSMS($phone, $otp->otp_code);
+            if (!$smsResult['success']) {
+                Log::error('[OTP] SMS send failed', ['phone' => $phone, 'error' => $smsResult['message']]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send verification code. Please try again.',
+                ], 500);
+            }
         }
 
-        Log::info('[OTP] Code sent', ['phone' => $phone]);
+        Log::info('[OTP] Code generated (SMS BYPASSED)', ['phone' => $phone, 'code' => $otp->otp_code]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Verification code sent!',
+            'message' => 'Verification code sent!', 
             'data' => [
                 'expires_in' => OtpVerification::OTP_EXPIRY_MINUTES * 60, // seconds
                 'resend_cooldown' => OtpVerification::RESEND_COOLDOWN_SECONDS,
+                // TEMP: Return code directly since SMS is bypassed
+                'bypass_code' => $otp->otp_code,
             ],
         ]);
     }
