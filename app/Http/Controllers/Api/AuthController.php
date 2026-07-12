@@ -60,6 +60,8 @@ class AuthController extends Controller
                     'stamps_collected' => $user->stamps_collected,
                     'stamps_required' => $user->stamps_required,
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
+                    'lesh_acc' => $user->lesh_acc,
+                    'lesh_exp' => $user->lesh_exp,
                 ],
                 'token' => $token->plainTextToken,
             ],
@@ -130,6 +132,13 @@ class AuthController extends Controller
                     'wallet_balance' => $user->wallet_balance,
                     'loyalty_points' => $user->loyalty_points,
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
+                    'lesh_acc' => $user->lesh_acc,
+                    'lesh_exp' => $user->lesh_exp,
+                ],
+                'lesh_card' => [
+                    'account_number' => $user->lesh_acc,
+                    'expiry' => $user->lesh_exp,
+                    'cvv' => $user->raw_lesh_cvv ?? '***', // Shown ONCE only during registration
                 ],
                 'token' => $token->plainTextToken,
             ],
@@ -190,6 +199,8 @@ class AuthController extends Controller
                     'stamps_collected' => $user->stamps_collected,
                     'stamps_required' => $user->stamps_required,
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
+                    'lesh_acc' => $user->lesh_acc,
+                    'lesh_exp' => $user->lesh_exp,
                 ],
             ],
         ]);

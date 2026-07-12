@@ -11,6 +11,43 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    // ─── Auto-generate Lesh Account on creation ──────────────────────────────────
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->lesh_acc)) {
+                $user->lesh_acc = self::generateLeshAccount();
+            }
+            if (empty($user->lesh_exp)) {
+                // Expires 5 years from now
+                $user->lesh_exp = now()->addYears(5)->format('m/y');
+            }
+            if (empty($user->lesh_cvv)) {
+                $rawCvv = str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
+                $user->lesh_cvv = bcrypt($rawCvv);
+                // Store raw CVV temporarily so it can be returned ONCE to user
+                $user->raw_lesh_cvv = $rawCvv;
+            }
+        });
+    }
+
+    /**
+     * Generate a unique 16-digit Lesh account number (formatted XXXX-XXXX-XXXX-XXXX).
+     */
+    private static function generateLeshAccount(): string
+    {
+        do {
+            $digits = '';
+            for ($i = 0; $i < 16; $i++) {
+                $digits .= random_int(0, 9);
+            }
+            $formatted = implode('-', str_split($digits, 4)); // XXXX-XXXX-XXXX-XXXX
+        } while (self::where('lesh_acc', $formatted)->exists());
+
+        return $formatted;
+    }
+
     protected $fillable = [
         'name',
         'first_name',
@@ -18,6 +55,9 @@ class User extends Authenticatable
         'phone',
         'password',
         'avatar',
+        'lesh_acc',
+        'lesh_exp',
+        'lesh_cvv',
         'member_level',
         'member_level_label',
         'stamps_collected',
@@ -58,6 +98,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'lesh_cvv',
     ];
 
     protected $casts = [
