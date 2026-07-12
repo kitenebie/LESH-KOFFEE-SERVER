@@ -100,6 +100,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     // Subscriptions (user actions)
     Route::post('/subscriptions/subscribe', [SubscriptionController::class, 'subscribe']);
     Route::get('/subscriptions/my', [SubscriptionController::class, 'mySubscriptions']);
+    Route::post('/subscriptions/redeem', [SubscriptionController::class, 'redeem']);
 
     // Vouchers
     Route::get('/vouchers', [VoucherController::class, 'index']);
@@ -109,9 +110,7 @@ Route::post('/vouchers/{id}/claim', [VoucherController::class, 'claim']);
 Route::post('/vouchers/claim-by-code', [VoucherController::class, 'claimByCode']);
 
     // Payments (initiate checkout — requires authenticated user)
-    Route::middleware('throttle:60,1')->group(function () {
-        Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
-    });
+    Route::post('/payments/checkout', [PaymentController::class, 'checkout']);
     Route::get('/payments/status/{reqId}', [PaymentController::class, 'status']);
 
     // Ratings

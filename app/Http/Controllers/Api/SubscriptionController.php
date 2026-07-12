@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\SubscriptionService;
 use App\Models\Subscription;
+use App\Models\Order;
+use App\Models\LeshWallet;
 use App\Models\UserSubscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -111,6 +113,105 @@ class SubscriptionController extends Controller
                 'is_expired' => $s->is_expired,
                 'is_usable' => $s->is_usable,
             ]),
+        ]);
+    }
+
+    /**
+     * POST /api/subscriptions/redeem
+     * 
+     * Redeem a drink from a user's active subscription.
+     * Called by the Filament QR scanner after scanning the user's QR code.
+     */
+    public function redeem(Request $request): JsonResponse
+    {
+        $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'subscription_id' => 'required|integer|exists:subscriptions,id',
+            'user_subscription_id' => 'required|integer|exists:user_subscriptions,id',
+        ]);
+
+        $userId = $request->input('user_id');
+        $subscriptionId = $request->input('subscription_id');
+        $userSubscriptionId = $request->input('user_subscription_id');
+
+        // Find the UserSubscription record
+        $userSub = UserSubscription::with('subscription')
+            ->where('id', $userSubscriptionId)
+            ->where('user_id', $userId)
+            ->where('subscription_id', $subscriptionId)
+            ->first();
+
+        if (!$userSub) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription record not found.',
+            ], 404);
+        }
+
+        // Verify it's active and not expired
+        if (!$userSub->is_usable) {
+            $reason = $userSub->is_expired
+                ? 'This subscription has expired.'
+                : ($userSub->drinks_remaining <= 0
+                    ? 'No drinks remaining on this subscription.'
+                    : 'This subscription is not active.');
+
+            return response()->json([
+                'success' => false,
+                'message' => $reason,
+            ], 422);
+        }
+
+        // Decrement drinks_remaining
+        $redeemed = $userSub->useDrink('Subscription drink redeemed via QR');
+
+        if (!$redeemed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to redeem drink. Please try again.',
+            ], 422);
+        }
+
+        // Create an Order record
+        $subscriptionName = $userSub->subscription->name ?? 'Subscription';
+        $orderNumber = str_replace(' ', '', $subscriptionName) . '-' . now()->format('Ymd') . '-' . str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $order = Order::create([
+            'user_id' => $userId,
+            'order_number' => $orderNumber,
+            'date' => now()->toDateString(),
+            'time' => now()->format('H:i'),
+            'status' => 'Completed',
+            'total' => 0,
+            'subtotal' => 0,
+            'delivery_fee' => 0,
+            'discount' => 0,
+            'payment_method' => 'subscription',
+        ]);
+
+        // Create a WalletTransaction for audit trail
+        $wallet = LeshWallet::firstOrCreate(
+            ['user_id' => $userId],
+            ['balance' => 0, 'currency' => 'PHP', 'is_active' => true]
+        );
+
+        $wallet->transactions()->create([
+            'user_id' => $userId,
+            'type' => 'debit',
+            'amount' => 0,
+            'description' => "Subscription redemption: {$subscriptionName}",
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Drink redeemed successfully! ({$userSub->drinks_remaining} remaining)",
+            'data' => [
+                'order_number' => $order->order_number,
+                'subscription_name' => $subscriptionName,
+                'drinks_remaining' => $userSub->drinks_remaining,
+                'drinks_used' => $userSub->drinks_used,
+            ],
         ]);
     }
 }
