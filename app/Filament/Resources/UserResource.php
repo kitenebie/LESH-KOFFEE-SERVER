@@ -64,11 +64,14 @@ class UserResource extends Resource
                                 'Platinum' => 'Platinum',
                                 'Diamond'  => 'Diamond',
                             ])
-                            ->default('Silver')
+                                'Bronze'   => 'Bronze',
+                            ->default('Bronze')
+                                    'Bronze'   => 'Lesh Kaffe Bronze Member',
                             ->required()
                             ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, ?string $state) {
+                            ->afterStateUpdated(function (\Filament\Schemas\Components\Utilities\Set $set, ?string $state) {
                                 $labels = [
+                                    'Bronze'   => 'Lesh Kaffe Bronze Member',
                                     'Silver'   => 'Lesh Kaffe Silver Member',
                                     'Gold'     => 'Lesh Kaffe Gold Member',
                                     'Platinum' => 'Lesh Kaffe Platinum Member',
@@ -122,10 +125,11 @@ class UserResource extends Resource
                     ->searchable(),
                 \Filament\Tables\Columns\BadgeColumn::make('member_level')
                     ->colors([
+                        'warning' => 'Bronze',
                         'gray'    => 'Silver',
-                        'warning' => 'Gold',
+                        'success' => 'Gold',
                         'info'    => 'Platinum',
-                        'success' => 'Diamond',
+                        'primary' => 'Diamond',
                     ]),
                 \Filament\Tables\Columns\TextColumn::make('loyalty_points')
                     ->numeric()
@@ -137,6 +141,7 @@ class UserResource extends Resource
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('member_level')
                     ->options([
+                        'Bronze'   => 'Bronze',
                         'Silver'   => 'Silver',
                         'Gold'     => 'Gold',
                         'Platinum' => 'Platinum',
@@ -157,6 +162,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RelationManagers\MembershipCardRelationManager::class,
             RelationManagers\AddressesRelationManager::class,
             RelationManagers\OrdersRelationManager::class,
             RelationManagers\LoyaltyTransactionsRelationManager::class,
