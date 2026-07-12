@@ -8,9 +8,12 @@ use App\Models\Subscription;
 use App\Models\Order;
 use App\Models\LeshWallet;
 use App\Models\UserSubscription;
+use App\Models\WalletTransaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionController extends Controller
 {
@@ -61,23 +64,75 @@ class SubscriptionController extends Controller
             ], 422);
         }
 
-        // Create user subscription
-        $userSub = UserSubscription::subscribe($userId, $plan);
+        $amount = (float) $plan->price;
 
-        return response()->json([
-            'success' => true,
-            'message' => "Subscribed to {$plan->name}! Valid for {$plan->duration_days} days.",
-            'data' => [
-                'id' => $userSub->id,
-                'subscription_name' => $plan->name,
-                'starts_at' => $userSub->starts_at->format('Y-m-d'),
-                'expires_at' => $userSub->expires_at->format('Y-m-d'),
-                'drinks_remaining' => $userSub->drinks_remaining,
-                'drinks_per_week' => $plan->drinks_per_week,
-                'duration_days' => $plan->duration_days,
-                'status' => $userSub->status,
-            ],
-        ], 201);
+        try {
+            $userSub = DB::transaction(function () use ($userId, $plan, $amount) {
+                // Ensure wallet exists
+                $wallet = LeshWallet::firstOrCreate(
+                    ['user_id' => $userId],
+                    ['balance' => 0, 'currency' => 'PHP', 'is_active' => true]
+                );
+
+                // 1. Credit — record payment received for subscription
+                WalletTransaction::create([
+                    'user_id' => $userId,
+                    'wallet_id' => $wallet->id,
+                    'type' => 'credit',
+                    'amount' => $amount,
+                    'description' => "Subscription payment: {$plan->name}",
+                    'transaction_date' => now()->toDateString(),
+                ]);
+
+                // 2. Debit — record payment spent on subscription
+                WalletTransaction::create([
+                    'user_id' => $userId,
+                    'wallet_id' => $wallet->id,
+                    'type' => 'debit',
+                    'amount' => $amount,
+                    'description' => "Prepaid Subscription: {$plan->name} ({$plan->duration_days} days)",
+                    'transaction_date' => now()->toDateString(),
+                ]);
+
+                // 3. Create UserSubscription record
+                $userSub = UserSubscription::subscribe($userId, $plan);
+
+                Log::info('[Subscription] User subscribed', [
+                    'user_id' => $userId,
+                    'plan' => $plan->name,
+                    'amount' => $amount,
+                    'user_subscription_id' => $userSub->id,
+                ]);
+
+                return $userSub;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => "Subscribed to {$plan->name}! Valid for {$plan->duration_days} days.",
+                'data' => [
+                    'id' => $userSub->id,
+                    'subscription_name' => $plan->name,
+                    'starts_at' => $userSub->starts_at->format('Y-m-d'),
+                    'expires_at' => $userSub->expires_at->format('Y-m-d'),
+                    'drinks_remaining' => $userSub->drinks_remaining,
+                    'drinks_per_week' => $plan->drinks_per_week,
+                    'duration_days' => $plan->duration_days,
+                    'status' => $userSub->status,
+                ],
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('[Subscription] Subscribe failed', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription failed. Please try again.',
+            ], 500);
+        }
     }
 
     /**
