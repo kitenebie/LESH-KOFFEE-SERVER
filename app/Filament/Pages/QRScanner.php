@@ -28,7 +28,7 @@ class QRScanner extends Page
         return 'QR Scanner';
     }
 
-    public static function getSlug(): string
+    public static function getSlug(?\Filament\Panel $panel = null): string
     {
         return 'qr-scanner';
     }
