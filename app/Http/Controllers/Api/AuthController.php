@@ -104,6 +104,7 @@ class AuthController extends Controller
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
             'password' => Hash::make($request->input('password')),
+            'avatar' => null, // Will be set after creation with user ID
             'member_level' => 'Bronze',
             'member_level_label' => 'Lesh Kaffe Bronze Member',
             'wallet_balance' => 0,
@@ -112,6 +113,9 @@ class AuthController extends Controller
             'stamps_required' => 8,
             'joined_date' => now()->toDateString(),
         ]);
+
+        // Set DiceBear avatar with user ID as seed
+        $user->update(['avatar' => "https://api.dicebear.com/9.x/fun-emoji/svg?seed={$user->id}"]);
 
         // Create Sanctum token for the newly registered user
         $token = $user->createToken('mobile-app', ['*']);
