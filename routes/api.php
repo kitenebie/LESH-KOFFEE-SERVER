@@ -91,6 +91,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
 
     // Stamps
     Route::get('/stamps', [StampController::class, 'index']);
+    Route::get('/stamps/quota-progress', [StampController::class, 'quotaProgress']);
 
     // Vouchers
     Route::get('/vouchers', [VoucherController::class, 'index']);

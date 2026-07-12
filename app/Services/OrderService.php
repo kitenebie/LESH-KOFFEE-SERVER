@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\WalletRepositoryInterface;
+use App\Services\StampQuotaService;
 use App\Models\Product;
 use App\Models\LeshPoints;
 use App\Models\ProductCustomization;
@@ -68,6 +69,7 @@ class OrderService
         if ($paymentMethod !== 'wallet' || $total <= 0) {
             $order = $this->orderRepository->create($data);
             $this->awardLoyaltyPointsForOrder($userId, $items);
+            (new StampQuotaService())->processOrderStamps($userId, $items);
             $this->markVouchersAsUsed($voucherResult['used_voucher_ids']);
             return $order;
         }
@@ -110,6 +112,7 @@ class OrderService
 
             // Award loyalty points
             $this->awardLoyaltyPointsForOrder($userId, $items);
+            (new StampQuotaService())->processOrderStamps($userId, $items);
             $this->markVouchersAsUsed($voucherResult['used_voucher_ids']);
 
             Log::info('[Order] Wallet payment successful', [

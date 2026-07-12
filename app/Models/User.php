@@ -24,6 +24,7 @@ class User extends Authenticatable
         'stamps_required',
         'subscription_balance',
         'active_subscription_id',
+        'stamp_quota_category_id',
         'joined_date',
         'latitude',
         'longitude',
@@ -118,6 +119,11 @@ class User extends Authenticatable
     public function activeSubscription()
     {
         return $this->belongsTo(Subscription::class, 'active_subscription_id');
+    }
+
+    public function stampQuotaTier()
+    {
+        return $this->belongsTo(StampQuotaCategory::class, 'stamp_quota_category_id');
     }
 
     public function deliveryTrackings()
