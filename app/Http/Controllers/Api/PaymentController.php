@@ -247,6 +247,8 @@ class PaymentController extends Controller
                         $subscription = Subscription::find($subscriptionId);
 
                         if ($subscription) {
+                            \Log::info("[BUX Webhook] Processing SUB. userId: {$userId}, subId: {$subscriptionId}, plan: {$subscription->name}");
+                            try {
                             // Update user's active subscription
                             User::where('id', $userId)->update(['active_subscription_id' => $subscriptionId]);
 
@@ -287,6 +289,16 @@ class PaymentController extends Controller
                                 $leshPoints->earn($subscription->loyalty_points, "Subscription \"{$subscription->name}\" Reward (+{$subscription->loyalty_points} pts)");
                                 \Log::info("[BUX Webhook] Loyalty points awarded for subscription. userId: {$userId}, points: {$subscription->loyalty_points}");
                             }
+                            } catch (\Exception $subEx) {
+                                \Log::error("[BUX Webhook] SUB processing FAILED", [
+                                    'user_id' => $userId,
+                                    'subscription_id' => $subscriptionId,
+                                    'error' => $subEx->getMessage(),
+                                    'trace' => substr($subEx->getTraceAsString(), 0, 1000),
+                                ]);
+                            }
+                        } else {
+                            \Log::warning("[BUX Webhook] Subscription plan NOT FOUND. id: {$subscriptionId}");
                         }
                     }
 
