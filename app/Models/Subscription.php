@@ -39,6 +39,11 @@ class Subscription extends Model
         return $this->hasMany(UserSubscription::class);
     }
 
+    public function subscribers()
+    {
+        return $this->hasMany(User::class, 'active_subscription_id');
+    }
+
     // ─── Scopes ───────────────────────────────────────────────────────────
 
     /**
