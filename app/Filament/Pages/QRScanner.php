@@ -11,19 +11,26 @@ use Livewire\Attributes\Rule;
 
 class QRScanner extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-qr-code';
-
-    protected static ?string $navigationLabel = 'QR Scanner';
-
-    protected static ?string $title = 'QR Scanner — Subscription Redemption';
-
-    protected static ?string $slug = 'qr-scanner';
-
     protected static string $view = 'filament.pages.qr-scanner';
+
+    public static function getNavigationIcon(): string|\BackedEnum|null
+    {
+        return 'heroicon-o-qr-code';
+    }
 
     public static function getNavigationGroup(): ?string
     {
         return 'Operations';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'QR Scanner';
+    }
+
+    public static function getSlug(): string
+    {
+        return 'qr-scanner';
     }
 
     #[Rule('required|string')]
