@@ -163,6 +163,7 @@ class UserResource extends Resource
             RelationManagers\MembershipCardRelationManager::class,
             RelationManagers\AddressesRelationManager::class,
             RelationManagers\OrdersRelationManager::class,
+            RelationManagers\UserSubscriptionsRelationManager::class,
             RelationManagers\LoyaltyTransactionsRelationManager::class,
             RelationManagers\StampAchievementsRelationManager::class,
             RelationManagers\UserVouchersRelationManager::class,
