@@ -15,6 +15,10 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        static::created(function (User $user) {
+            MembershipCard::createForUser($user);
+        });
+
         static::creating(function (User $user) {
             if (empty($user->lesh_acc)) {
                 $user->lesh_acc = self::generateLeshAccount();
@@ -111,6 +115,11 @@ class User extends Authenticatable
     ];
 
     // ─── Relationships ────────────────────────────────────────────────
+
+    public function membershipCard()
+    {
+        return $this->hasOne(MembershipCard::class);
+    }
 
     public function leshWallet()
     {

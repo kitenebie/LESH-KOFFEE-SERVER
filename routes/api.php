@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\MembershipCardController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\NotificationController;
@@ -92,6 +93,9 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     // Stamps
     Route::get('/stamps', [StampController::class, 'index']);
     Route::get('/stamps/quota-progress', [StampController::class, 'quotaProgress']);
+
+    // Membership Card
+    Route::get('/membership-card', [MembershipCardController::class, 'index']);
 
     // Vouchers
     Route::get('/vouchers', [VoucherController::class, 'index']);

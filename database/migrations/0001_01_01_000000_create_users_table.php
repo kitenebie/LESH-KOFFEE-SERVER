@@ -17,8 +17,8 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('avatar')->nullable();
-            $table->enum('member_level', ['Silver', 'Gold', 'Platinum', 'Diamond'])->default('Silver');
-            $table->string('member_level_label')->default('Lesh Kaffe Silver Member');
+            $table->enum('member_level', ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'])->default('Bronze');
+            $table->string('member_level_label')->default('Lesh Kaffe Bronze Member');
             $table->decimal('wallet_balance', 10, 2)->default(0);
             $table->integer('loyalty_points')->default(0);
             $table->integer('stamps_collected')->default(0);

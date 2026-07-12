@@ -104,8 +104,8 @@ class AuthController extends Controller
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
             'password' => Hash::make($request->input('password')),
-            'member_level' => 'Silver',
-            'member_level_label' => 'Lesh Kaffe Silver Member',
+            'member_level' => 'Bronze',
+            'member_level_label' => 'Lesh Kaffe Bronze Member',
             'wallet_balance' => 0,
             'loyalty_points' => 0,
             'stamps_collected' => 0,
@@ -139,6 +139,12 @@ class AuthController extends Controller
                     'account_number' => $user->lesh_acc,
                     'expiry' => $user->lesh_exp,
                     'cvv' => $user->raw_lesh_cvv ?? '***', // Shown ONCE only during registration
+                ],
+                'membership_card' => [
+                    'card_tier' => $user->membershipCard?->card_tier ?? 'Bronze',
+                    'card_number' => $user->membershipCard?->card_number,
+                    'card_exp' => $user->membershipCard?->card_exp,
+                    'tier_label' => $user->membershipCard?->tier_label ?? 'Lesh Kaffe Bronze Member',
                 ],
                 'token' => $token->plainTextToken,
             ],

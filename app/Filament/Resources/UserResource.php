@@ -58,6 +58,7 @@ class UserResource extends Resource
                     ->schema([
                         \Filament\Forms\Components\Select::make('member_level')
                             ->options([
+                                'Bronze'   => 'Bronze',
                                 'Silver'   => 'Silver',
                                 'Gold'     => 'Gold',
                                 'Platinum' => 'Platinum',
