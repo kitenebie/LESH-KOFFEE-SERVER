@@ -13,8 +13,6 @@ class QRScanner extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-qr-code';
 
-    protected static ?string $navigationGroup = 'Operations';
-
     protected static ?string $navigationLabel = 'QR Scanner';
 
     protected static ?string $title = 'QR Scanner — Subscription Redemption';
@@ -22,6 +20,11 @@ class QRScanner extends Page
     protected static ?string $slug = 'qr-scanner';
 
     protected static string $view = 'filament.pages.qr-scanner';
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Operations';
+    }
 
     #[Rule('required|string')]
     public string $qrData = '';
