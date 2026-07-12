@@ -19,12 +19,26 @@
             <div style="position: relative; width: 100%; max-width: 500px; margin: 0 auto 20px auto;">
                 <div id="qr-reader" style="width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid #d1d5db;"></div>
 
-                {{-- Scanner status overlay --}}
-                <div x-show="!scanning" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); border-radius: 12px;">
-                    <button @click="startScanner()" style="padding: 14px 28px; background: #16a34a; color: white; font-weight: 600; font-size: 15px; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                {{-- Scanner status overlay (when not scanning) --}}
+                <div x-show="!scanning" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); border-radius: 12px; gap: 12px; min-height: 200px;">
+                    {{-- Live camera button (only works on HTTPS/localhost) --}}
+                    <button @click="startScanner()" style="padding: 14px 28px; background: #16a34a; color: white; font-weight: 600; font-size: 14px; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
-                        Start Camera
+                        Live Camera
                     </button>
+
+                    <span style="color: #ccc; font-size: 12px;">— or —</span>
+
+                    {{-- File/Image scan button (works on HTTP!) --}}
+                    <label style="padding: 14px 28px; background: #4f46e5; color: white; font-weight: 600; font-size: 14px; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                        Scan from Image / Take Photo
+                        <input type="file" accept="image/*" capture="environment" @change="scanFromFile($event)" style="display: none;" />
+                    </label>
+
+                    <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0; max-width: 280px;">
+                        Live Camera requires HTTPS. Use "Scan from Image" on HTTP.
+                    </p>
                 </div>
             </div>
 
@@ -33,6 +47,10 @@
                 <button x-show="scanning" @click="stopScanner()" style="padding: 10px 20px; background: #ef4444; color: white; font-weight: 600; font-size: 13px; border: none; border-radius: 8px; cursor: pointer;">
                     Stop Camera
                 </button>
+                <label x-show="scanning" style="padding: 10px 20px; background: #4f46e5; color: white; font-weight: 600; font-size: 13px; border: none; border-radius: 8px; cursor: pointer;">
+                    📷 Scan Image Instead
+                    <input type="file" accept="image/*" capture="environment" @change="scanFromFile($event)" style="display: none;" />
+                </label>
             </div>
 
             {{-- Manual Input Fallback --}}
@@ -116,6 +134,12 @@
 
                 async startScanner() {
                     try {
+                        // Check if camera API is available (requires HTTPS or localhost)
+                        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                            alert('Live camera is not available on HTTP. Please use "Scan from Image / Take Photo" button instead.');
+                            return;
+                        }
+
                         this.scanner = new Html5Qrcode("qr-reader");
 
                         await this.scanner.start(
@@ -159,6 +183,39 @@
                         } catch (e) {}
                         this.scanning = false;
                     }
+                },
+
+                async scanFromFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    try {
+                        // Create a temporary scanner instance for file scanning
+                        const fileScanner = new Html5Qrcode("qr-reader");
+
+                        const result = await fileScanner.scanFile(file, true);
+
+                        // Success!
+                        this.scannedData = result;
+
+                        // Beep
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = ctx.createOscillator();
+                            osc.type = 'sine';
+                            osc.frequency.value = 880;
+                            osc.connect(ctx.destination);
+                            osc.start();
+                            setTimeout(() => osc.stop(), 150);
+                        } catch(e) {}
+
+                        await fileScanner.clear();
+                    } catch (err) {
+                        alert('No QR code found in the image. Please try again with a clearer image.');
+                    }
+
+                    // Reset file input so same file can be re-selected
+                    event.target.value = '';
                 },
 
                 processManual() {
