@@ -10,6 +10,8 @@ use App\Models\LeshPoints;
 use App\Models\TopupLoyaltyTier;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\UserSubscription;
+use App\Models\WalletTransaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -242,15 +244,49 @@ class PaymentController extends Controller
                     $subscriptionId = (int) ($parts[2] ?? 0);
 
                     if ($userId && $subscriptionId) {
-                        User::where('id', $userId)->update(['active_subscription_id' => $subscriptionId]);
-                        \Log::info("[BUX Webhook] Subscription activated. userId: {$userId}, subscriptionId: {$subscriptionId}, ref: {$refCode}");
-
-                        // Award loyalty points from subscription's loyalty_points column
                         $subscription = Subscription::find($subscriptionId);
-                        if ($subscription && $subscription->loyalty_points > 0) {
-                            $leshPoints = LeshPoints::firstOrCreate(['user_id' => $userId], ['balance' => 0, 'is_active' => true]);
-                            $leshPoints->earn($subscription->loyalty_points, "Subscription \"{$subscription->name}\" Reward (+{$subscription->loyalty_points} pts)");
-                            \Log::info("[BUX Webhook] Loyalty points awarded for subscription. userId: {$userId}, points: {$subscription->loyalty_points}");
+
+                        if ($subscription) {
+                            // Update user's active subscription
+                            User::where('id', $userId)->update(['active_subscription_id' => $subscriptionId]);
+
+                            // Create wallet transactions (credit + debit for audit trail)
+                            $wallet = LeshWallet::firstOrCreate(
+                                ['user_id' => $userId],
+                                ['balance' => 0, 'currency' => 'PHP', 'is_active' => true]
+                            );
+
+                            $subAmount = (float) $subscription->price;
+
+                            // Credit — payment received
+                            $wallet->transactions()->create([
+                                'user_id' => $userId,
+                                'type' => 'credit',
+                                'amount' => $subAmount,
+                                'description' => "Subscription payment: {$subscription->name} (Ref: {$refCode})",
+                                'transaction_date' => now()->toDateString(),
+                            ]);
+
+                            // Debit — spent on subscription
+                            $wallet->transactions()->create([
+                                'user_id' => $userId,
+                                'type' => 'debit',
+                                'amount' => $subAmount,
+                                'description' => "Prepaid Subscription: {$subscription->name} ({$subscription->duration_days} days)",
+                                'transaction_date' => now()->toDateString(),
+                            ]);
+
+                            // Create UserSubscription record
+                            UserSubscription::subscribe($userId, $subscription);
+
+                            \Log::info("[BUX Webhook] Subscription activated. userId: {$userId}, subscriptionId: {$subscriptionId}, ref: {$refCode}");
+
+                            // Award loyalty points from subscription's loyalty_points column
+                            if ($subscription->loyalty_points > 0) {
+                                $leshPoints = LeshPoints::firstOrCreate(['user_id' => $userId], ['balance' => 0, 'is_active' => true]);
+                                $leshPoints->earn($subscription->loyalty_points, "Subscription \"{$subscription->name}\" Reward (+{$subscription->loyalty_points} pts)");
+                                \Log::info("[BUX Webhook] Loyalty points awarded for subscription. userId: {$userId}, points: {$subscription->loyalty_points}");
+                            }
                         }
                     }
 
