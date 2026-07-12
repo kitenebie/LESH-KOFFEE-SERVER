@@ -11,7 +11,7 @@ use Livewire\Attributes\Rule;
 
 class QRScanner extends Page
 {
-    protected static string $view = 'filament.pages.qr-scanner';
+    protected string $view = 'filament.pages.qr-scanner';
 
     public static function getNavigationIcon(): string|\BackedEnum|null
     {
