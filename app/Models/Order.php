@@ -4,10 +4,69 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Order extends Model
 {
     use HasFactory;
+
+    // ─── Auto-award stamps & loyalty when order is marked Completed ────────
+
+    protected static function booted(): void
+    {
+        static::updating(function (Order $order) {
+            // Only trigger when status changes TO 'Completed'
+            if ($order->isDirty('status') && $order->status === 'Completed') {
+                $order->awardRewardsOnCompletion();
+            }
+        });
+    }
+
+    /**
+     * Award loyalty points and stamp quota progress when order is completed.
+     */
+    private function awardRewardsOnCompletion(): void
+    {
+        $items = $this->items()->get()->map(fn($item) => [
+            'product_id' => $item->product_id,
+            'quantity' => $item->quantity,
+        ])->toArray();
+
+        if (empty($items)) return;
+
+        // Award loyalty points
+        $this->awardLoyaltyPoints($items);
+
+        // Award stamp quota progress
+        (new \App\Services\StampQuotaService())->processOrderStamps($this->user_id, $items);
+
+        Log::info('[Order] Rewards awarded on completion', [
+            'order_id' => $this->id,
+            'user_id' => $this->user_id,
+            'items_count' => count($items),
+        ]);
+    }
+
+    private function awardLoyaltyPoints(array $items): void
+    {
+        $productIds = array_column($items, 'product_id');
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
+        $totalPoints = 0;
+        foreach ($items as $item) {
+            $product = $products->get($item['product_id']);
+            if (!$product || ($product->loyalty_points ?? 0) <= 0) continue;
+            $totalPoints += $product->loyalty_points * (int) ($item['quantity'] ?? 1);
+        }
+
+        if ($totalPoints <= 0) return;
+
+        $leshPoints = LeshPoints::firstOrCreate(
+            ['user_id' => $this->user_id],
+            ['balance' => 0, 'is_active' => true]
+        );
+        $leshPoints->earn($totalPoints, "Order #{$this->order_number} completed (+{$totalPoints} pts)");
+    }
 
     protected $fillable = [
         'user_id',
