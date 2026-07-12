@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * Temporary storage for raw CVV (NOT persisted to DB).
@@ -63,6 +66,7 @@ class User extends Authenticatable
         'first_name',
         'email',
         'phone',
+        'role',
         'password',
         'avatar',
         'lesh_acc',
@@ -196,6 +200,31 @@ class User extends Authenticatable
     public function stampQuotaTier()
     {
         return $this->belongsTo(StampQuotaCategory::class, 'stamp_quota_category_id');
+    }
+
+    // ─── Role Helpers ────────────────────────────────────────────────────────────
+
+    /**
+     * Filament: Only admin/super-admin can access the admin panel.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasRole(['admin', 'super_admin']);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(['admin', 'super_admin']);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
+
+    public function isUser(): bool
+    {
+        return !$this->hasRole(['admin', 'super_admin']);
     }
 
     public function deliveryTrackings()

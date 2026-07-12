@@ -62,6 +62,7 @@ class AuthController extends Controller
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
                     'lesh_acc' => $user->lesh_acc,
                     'lesh_exp' => $user->lesh_exp,
+                    'role' => $user->role ?? 'user',
                 ],
                 'token' => $token->plainTextToken,
             ],
@@ -138,6 +139,7 @@ class AuthController extends Controller
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
                     'lesh_acc' => $user->lesh_acc,
                     'lesh_exp' => $user->lesh_exp,
+                    'role' => $user->role ?? 'user',
                 ],
                 'lesh_card' => [
                     'account_number' => $user->lesh_acc,
@@ -211,6 +213,7 @@ class AuthController extends Controller
                     'joined_date' => $user->joined_date?->format('Y-m-d'),
                     'lesh_acc' => $user->lesh_acc,
                     'lesh_exp' => $user->lesh_exp,
+                    'role' => $user->role ?? 'user',
                 ],
             ],
         ]);
