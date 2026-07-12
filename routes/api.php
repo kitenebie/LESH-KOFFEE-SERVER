@@ -97,6 +97,10 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     // Membership Card
     Route::get('/membership-card', [MembershipCardController::class, 'index']);
 
+    // Subscriptions (user actions)
+    Route::post('/subscriptions/subscribe', [SubscriptionController::class, 'subscribe']);
+    Route::get('/subscriptions/my', [SubscriptionController::class, 'mySubscriptions']);
+
     // Vouchers
     Route::get('/vouchers', [VoucherController::class, 'index']);
     Route::get('/vouchers/unclaimed', [VoucherController::class, 'unclaimed']);

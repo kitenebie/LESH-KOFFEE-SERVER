@@ -171,6 +171,22 @@ class User extends Authenticatable
         return $this->belongsTo(Subscription::class, 'active_subscription_id');
     }
 
+    public function userSubscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    /**
+     * Get the user's currently active (non-expired) subscription.
+     */
+    public function activeUserSubscription()
+    {
+        return $this->hasOne(UserSubscription::class)
+            ->where('status', 'active')
+            ->where('expires_at', '>', now())
+            ->latest('starts_at');
+    }
+
     public function stampQuotaTier()
     {
         return $this->belongsTo(StampQuotaCategory::class, 'stamp_quota_category_id');
