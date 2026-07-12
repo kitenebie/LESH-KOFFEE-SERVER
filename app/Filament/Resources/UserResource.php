@@ -64,9 +64,7 @@ class UserResource extends Resource
                                 'Platinum' => 'Platinum',
                                 'Diamond'  => 'Diamond',
                             ])
-                                'Bronze'   => 'Bronze',
                             ->default('Bronze')
-                                    'Bronze'   => 'Lesh Kaffe Bronze Member',
                             ->required()
                             ->live()
                             ->afterStateUpdated(function (\Filament\Schemas\Components\Utilities\Set $set, ?string $state) {
