@@ -142,7 +142,7 @@ class AuthController extends Controller
                 'lesh_card' => [
                     'account_number' => $user->lesh_acc,
                     'expiry' => $user->lesh_exp,
-                    'cvv' => $user->raw_lesh_cvv ?? '***', // Shown ONCE only during registration
+                    'cvv' => $user->tempRawCvv ?? '***', // Shown ONCE only during registration
                 ],
                 'membership_card' => [
                     'card_tier' => $user->membershipCard?->card_tier ?? 'Bronze',

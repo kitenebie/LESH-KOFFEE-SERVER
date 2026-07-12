@@ -11,6 +11,12 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /**
+     * Temporary storage for raw CVV (NOT persisted to DB).
+     * Used only during registration to return CVV once to user.
+     */
+    public ?string $tempRawCvv = null;
+
     // ─── Auto-generate Lesh Account on creation ──────────────────────────────────
 
     protected static function booted(): void
@@ -30,8 +36,8 @@ class User extends Authenticatable
             if (empty($user->lesh_cvv)) {
                 $rawCvv = str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
                 $user->lesh_cvv = bcrypt($rawCvv);
-                // Store raw CVV temporarily so it can be returned ONCE to user
-                $user->raw_lesh_cvv = $rawCvv;
+                // Store raw CVV in non-persisted property (returned ONCE during registration)
+                $user->tempRawCvv = $rawCvv;
             }
         });
     }
