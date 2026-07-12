@@ -8,11 +8,10 @@ use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Temporary storage for raw CVV (NOT persisted to DB).
@@ -66,7 +65,6 @@ class User extends Authenticatable implements FilamentUser
         'first_name',
         'email',
         'phone',
-        'role',
         'password',
         'avatar',
         'lesh_acc',
@@ -209,22 +207,22 @@ class User extends Authenticatable implements FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasRole(['admin', 'super_admin']);
+        return in_array($this->role, ['admin', 'super-admin']);
     }
 
     public function isAdmin(): bool
     {
-        return $this->hasRole(['admin', 'super_admin']);
+        return in_array($this->role, ['admin', 'super-admin']);
     }
 
     public function isSuperAdmin(): bool
     {
-        return $this->hasRole('super_admin');
+        return $this->role === 'super-admin';
     }
 
     public function isUser(): bool
     {
-        return !$this->hasRole(['admin', 'super_admin']);
+        return $this->role === 'user';
     }
 
     public function deliveryTrackings()
