@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\LeshWallet;
 use App\Models\WalletTransfer;
 use App\Models\WalletTransaction;
+use App\Models\LeshPoints;
+use App\Models\TopupLoyaltyTier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -171,6 +173,17 @@ class WalletController extends Controller
                 'amount' => $amount,
                 'ref' => $result['reference_code'],
             ]);
+
+            // Award loyalty points based on TopupLoyaltyTier (same tiers as top-up)
+            $loyaltyPoints = TopupLoyaltyTier::getPointsForAmount($amount);
+            if ($loyaltyPoints > 0) {
+                $leshPoints = LeshPoints::firstOrCreate(
+                    ['user_id' => $senderId],
+                    ['balance' => 0, 'is_active' => true]
+                );
+                $leshPoints->earn($loyaltyPoints, "Send Lesh Money Reward (₱{$amount} → +{$loyaltyPoints} pts)");
+                Log::info("[Wallet] Loyalty points awarded for transfer. userId: {$senderId}, points: {$loyaltyPoints}");
+            }
 
             return response()->json([
                 'success' => true,

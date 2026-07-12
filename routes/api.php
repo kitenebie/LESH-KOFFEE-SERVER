@@ -73,7 +73,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
 
     // Wallet (read balance + debit only — top-up is done via webhook)
     Route::get('/wallet', [WalletController::class, 'index']);
-    Route::middleware('throttle:10,1')->group(function () {
+    Route::middleware('throttle:30,1')->group(function () {
         Route::post('/wallet/debit', [WalletController::class, 'debit']);
         Route::post('/wallet/transfer', [WalletController::class, 'transfer']);
     });
