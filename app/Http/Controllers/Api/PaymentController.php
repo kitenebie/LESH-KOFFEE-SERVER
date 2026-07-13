@@ -195,6 +195,7 @@ class PaymentController extends Controller
         $status = $data['status'] ?? null;
         $refCode = $data['ref_code'] ?? null;
         $amount = $data['amount'] ?? null;
+        $signature = $data['signature'] ?? null;
         $fee = $extras['fee'] ?? null;
         $param1 = $extras['param1'] ?? null;
         $param2 = $extras['param2'] ?? null;
