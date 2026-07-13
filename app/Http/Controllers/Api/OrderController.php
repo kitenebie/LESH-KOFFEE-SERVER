@@ -64,7 +64,7 @@ class OrderController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'super-admin') {
+        if (!$user || !$user->hasRole('super_admin')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 

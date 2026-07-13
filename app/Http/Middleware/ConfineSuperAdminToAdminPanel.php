@@ -14,7 +14,7 @@ class ConfineSuperAdminToAdminPanel
     {
         $user = auth()->user();
 
-        if ($user && $user->role === 'super-admin') {
+        if ($user && $user->hasRole('super_admin')) {
             $allowed = collect($this->allowedRoutes)
                 ->contains(fn ($pattern) => $request->routeIs($pattern));
 
