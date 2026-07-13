@@ -61,8 +61,16 @@ class OrderService
         // ─── SERVER-SIDE VOUCHER VALIDATION ────────────────────────────────
         $voucherCodes = $data['voucherCode'] ?? null;
         $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $recalculated['subtotal']);
-        $data['discount'] = $voucherResult['total_discount'];
-        $data['total'] = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $voucherResult['total_discount'], 2));
+
+        // ─── SUBSCRIPTION PERK DISCOUNTS ────────────────────────────────────
+        $perkService = new \App\Services\SubscriptionPerkService();
+        $perkResult = $perkService->calculatePerksForCart($userId, $items);
+        $perkDiscount = $perkResult['total_discount'] ?? 0;
+
+        // Combine voucher + perk discounts
+        $totalDiscount = $voucherResult['total_discount'] + $perkDiscount;
+        $data['discount'] = $totalDiscount;
+        $data['total'] = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $totalDiscount, 2));
         $total = $data['total'];
 
         // ─── NON-WALLET PAYMENT: Just create the order ──────────────────────

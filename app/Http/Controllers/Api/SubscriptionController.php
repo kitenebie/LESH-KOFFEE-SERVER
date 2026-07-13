@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\LeshWallet;
 use App\Models\UserSubscription;
 use App\Models\WalletTransaction;
+use App\Services\SubscriptionPerkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -299,16 +300,13 @@ class SubscriptionController extends Controller
                 $categoryIds = $subscription->eligibleCategories->pluck('id');
                 $products = Product::with('customization')
                     ->whereIn('category_id', $categoryIds)
-                    ->where('is_active', true)
                     ->get();
                 break;
 
             case 'all':
             default:
                 // All active products
-                $products = Product::with('customization')
-                    ->where('is_active', true)
-                    ->get();
+                $products = Product::with('customization')->get();
                 break;
         }
 
@@ -317,6 +315,52 @@ class SubscriptionController extends Controller
             'data' => $products,
             'redemption_type' => $subscription->redemption_type,
             'subscription_name' => $subscription->name,
+        ]);
+    }
+
+    /**
+     * GET /api/subscriptions/{id}/perks
+     * 
+     * Returns the perks (bonus discounts) for a subscription plan.
+     */
+    public function perks(int $id): JsonResponse
+    {
+        $perkService = new SubscriptionPerkService();
+        $perks = $perkService->getPerksDescription($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $perks,
+        ]);
+    }
+
+    /**
+     * POST /api/subscriptions/calculate-perks
+     * 
+     * Calculate perk discounts for the user's current cart.
+     * Body: { items: [{product_id, quantity, price}] }
+     */
+    public function calculatePerks(Request $request): JsonResponse
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $items = $request->input('items', []);
+        if (empty($items)) {
+            return response()->json([
+                'success' => true,
+                'data' => ['total_discount' => 0, 'perks_applied' => []],
+            ]);
+        }
+
+        $perkService = new SubscriptionPerkService();
+        $result = $perkService->calculatePerksForCart($userId, $items);
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
         ]);
     }
 }

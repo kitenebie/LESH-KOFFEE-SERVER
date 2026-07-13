@@ -47,6 +47,11 @@ class Subscription extends Model
         return $this->belongsToMany(Product::class, 'subscription_products');
     }
 
+    public function perks()
+    {
+        return $this->hasMany(SubscriptionPerk::class);
+    }
+
     public function userSubscriptions()
     {
         return $this->hasMany(UserSubscription::class);

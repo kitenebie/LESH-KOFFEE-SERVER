@@ -96,6 +96,44 @@ class SubscriptionResource extends Resource
                             ->searchable()
                             ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('redemption_type') === 'products'),
                     ])->columns(1),
+
+                \Filament\Schemas\Components\Section::make('Perks (Bonus Discounts)')
+                    ->description('Add bonus discounts subscribers get on specific categories (e.g. 10% food discount)')
+                    ->schema([
+                        \Filament\Forms\Components\Repeater::make('perks')
+                            ->relationship('perks')
+                            ->schema([
+                                \Filament\Forms\Components\Select::make('category_id')
+                                    ->label('Category')
+                                    ->relationship('category', 'name')
+                                    ->required()
+                                    ->searchable()
+                                    ->preload(),
+                                \Filament\Forms\Components\Select::make('discount_type')
+                                    ->options([
+                                        'percent' => 'Percentage (%)',
+                                        'fixed' => 'Fixed Amount (₱)',
+                                    ])
+                                    ->required()
+                                    ->default('percent'),
+                                \Filament\Forms\Components\TextInput::make('discount_value')
+                                    ->label('Discount Value')
+                                    ->helperText('e.g. 10 for 10% or 30 for ₱30')
+                                    ->numeric()
+                                    ->required(),
+                                \Filament\Forms\Components\TextInput::make('max_discount')
+                                    ->label('Max Discount (₱)')
+                                    ->helperText('Cap for percent discounts (leave blank for no cap)')
+                                    ->numeric()
+                                    ->nullable(),
+                                \Filament\Forms\Components\Toggle::make('is_active')
+                                    ->default(true),
+                            ])
+                            ->columns(3)
+                            ->collapsible()
+                            ->defaultItems(0)
+                            ->addActionLabel('Add Perk'),
+                    ])->columns(1),
             ]);
     }
 
