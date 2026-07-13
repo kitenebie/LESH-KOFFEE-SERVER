@@ -39,10 +39,21 @@ class SubscriptionResource extends Resource
                             ->numeric()
                             ->required()
                             ->prefix('₱'),
-                        \Filament\Forms\Components\TextInput::make('drinks')
+                        \Filament\Forms\Components\TextInput::make('items_per_week')
+                            ->label('Items Per Week')
+                            ->helperText('How many FREE items the user can redeem each week')
                             ->numeric()
-                            ->required()
-                            ->label('Drinks Per Week'),
+                            ->required(),
+                        \Filament\Forms\Components\TextInput::make('items_limit')
+                            ->label('Total Items Limit')
+                            ->helperText('Maximum total items over the entire subscription (e.g. 20)')
+                            ->numeric()
+                            ->required(),
+                        \Filament\Forms\Components\TextInput::make('expiration_days')
+                            ->label('Expiration (Days)')
+                            ->helperText('How many days this subscription lasts after purchase')
+                            ->numeric()
+                            ->default(360),
                         \Filament\Forms\Components\TextInput::make('loyalty_points')
                             ->label('Loyalty Points Earned')
                             ->helperText('Points awarded to customer when they buy this subscription')
@@ -100,9 +111,16 @@ class SubscriptionResource extends Resource
                 \Filament\Tables\Columns\TextColumn::make('price')
                     ->money('PHP')
                     ->sortable(),
-                \Filament\Tables\Columns\TextColumn::make('drinks')
-                    ->label('Drinks/Week')
+                \Filament\Tables\Columns\TextColumn::make('items_per_week')
+                    ->label('Items/Week')
                     ->numeric()
+                    ->sortable(),
+                \Filament\Tables\Columns\TextColumn::make('items_limit')
+                    ->label('Total Limit')
+                    ->numeric()
+                    ->sortable(),
+                \Filament\Tables\Columns\TextColumn::make('expiration_days')
+                    ->label('Days')
                     ->sortable(),
                 \Filament\Tables\Columns\TextColumn::make('loyalty_points')
                     ->label('LP')

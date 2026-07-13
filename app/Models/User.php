@@ -113,15 +113,17 @@ class User extends Authenticatable implements FilamentUser
      */
     public function getSubscriptionBalanceAttribute(): int
     {
-        // Check for active user subscription
         $activeSub = $this->userSubscriptions()
             ->where('status', 'active')
             ->where('expires_at', '>', now())
-            ->where('drinks_remaining', '>', 0)
+            ->where('items_remaining', '>', 0)
             ->latest()
             ->first();
 
-        return $activeSub ? (int) $activeSub->drinks_remaining : 0;
+        if (!$activeSub) return 0;
+
+        // Return how many items are available RIGHT NOW (respects weekly limit)
+        return $activeSub->items_available_now;
     }
 
     protected $hidden = [

@@ -13,10 +13,11 @@ class Subscription extends Model
         'name',
         'description',
         'price',
-        'drinks',
-        'drinks_per_week',
-        'duration_days',
-        'redemption_type',
+        'items_limit',        // Total maximum items over the entire subscription
+        'items_per_week',     // Weekly limit of free items
+        'expiration_days',    // How many days this subscription lasts
+        'duration_days',      // Legacy — same as expiration_days
+        'redemption_type',    // 'all', 'category', 'products'
         'loyalty_points',
         'icon',
         'is_active',
@@ -25,15 +26,16 @@ class Subscription extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
-        'drinks' => 'integer',
-        'drinks_per_week' => 'integer',
+        'items_limit' => 'integer',
+        'items_per_week' => 'integer',
+        'expiration_days' => 'integer',
         'duration_days' => 'integer',
         'loyalty_points' => 'integer',
         'is_active' => 'boolean',
         'expires_at' => 'datetime',
     ];
 
-    // ─── Relationships ────────────────────────────────────────────────────
+    // ─── Relationships ────────────────────────────────────────────────────────────
 
     public function eligibleCategories()
     {
@@ -55,11 +57,8 @@ class Subscription extends Model
         return $this->hasMany(User::class, 'active_subscription_id');
     }
 
-    // ─── Scopes ───────────────────────────────────────────────────────────
+    // ─── Scopes ───────────────────────────────────────────────────────────────────
 
-    /**
-     * Only return subscriptions that haven't expired (or have no expiry).
-     */
     public function scopeAvailable($query)
     {
         return $query->where('is_active', true)
@@ -69,9 +68,6 @@ class Subscription extends Model
             });
     }
 
-    /**
-     * Check if this subscription offer has expired.
-     */
     public function getIsExpiredAttribute(): bool
     {
         return $this->expires_at && $this->expires_at->isPast();
