@@ -24,9 +24,13 @@ class UserController extends Controller
 
         $user = $this->userService->getProfile($userId);
 
+        // Override the role column with the actual Spatie role
+        $userData = $user->toArray();
+        $userData['role'] = $user->roles->pluck('name')->first() ?? 'user';
+
         return response()->json([
             'success' => true,
-            'data' => $user,
+            'data' => $userData,
         ]);
     }
 
