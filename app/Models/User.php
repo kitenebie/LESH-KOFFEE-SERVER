@@ -76,7 +76,6 @@ class User extends Authenticatable implements FilamentUser
         'member_level_label',
         'stamps_collected',
         'stamps_required',
-        'subscription_balance',
         'active_subscription_id',
         'stamp_quota_category_id',
         'joined_date',
@@ -107,6 +106,22 @@ class User extends Authenticatable implements FilamentUser
             return (float) $this->leshWallet->balance;
         }
         return (float) ($this->leshWallet()?->first()?->balance ?? 0);
+    }
+
+    /**
+     * Get subscription balance from active UserSubscription (source of truth).
+     */
+    public function getSubscriptionBalanceAttribute(): int
+    {
+        // Check for active user subscription
+        $activeSub = $this->userSubscriptions()
+            ->where('status', 'active')
+            ->where('expires_at', '>', now())
+            ->where('drinks_remaining', '>', 0)
+            ->latest()
+            ->first();
+
+        return $activeSub ? (int) $activeSub->drinks_remaining : 0;
     }
 
     protected $hidden = [

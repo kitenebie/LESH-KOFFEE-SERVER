@@ -16,6 +16,7 @@ class Subscription extends Model
         'drinks',
         'drinks_per_week',
         'duration_days',
+        'redemption_type',
         'loyalty_points',
         'icon',
         'is_active',
@@ -33,6 +34,16 @@ class Subscription extends Model
     ];
 
     // ─── Relationships ────────────────────────────────────────────────────
+
+    public function eligibleCategories()
+    {
+        return $this->belongsToMany(Category::class, 'subscription_categories');
+    }
+
+    public function eligibleProducts()
+    {
+        return $this->belongsToMany(Product::class, 'subscription_products');
+    }
 
     public function userSubscriptions()
     {

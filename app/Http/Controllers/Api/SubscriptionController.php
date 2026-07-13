@@ -269,4 +269,54 @@ class SubscriptionController extends Controller
             ],
         ]);
     }
+
+    /**
+     * GET /api/subscriptions/{id}/eligible-products
+     * 
+     * Returns the products a subscription can be redeemed for.
+     * Based on redemption_type: 'all' = all products, 'category' = products in linked categories,
+     * 'products' = only specific linked products.
+     */
+    public function eligibleProducts(int $id): JsonResponse
+    {
+        $subscription = Subscription::with(['eligibleCategories', 'eligibleProducts.customization'])
+            ->find($id);
+
+        if (!$subscription) {
+            return response()->json(['success' => false, 'message' => 'Subscription not found'], 404);
+        }
+
+        $products = collect();
+
+        switch ($subscription->redemption_type) {
+            case 'products':
+                // Only specific products linked to this subscription
+                $products = $subscription->eligibleProducts;
+                break;
+
+            case 'category':
+                // All products in the linked categories
+                $categoryIds = $subscription->eligibleCategories->pluck('id');
+                $products = Product::with('customization')
+                    ->whereIn('category_id', $categoryIds)
+                    ->where('is_active', true)
+                    ->get();
+                break;
+
+            case 'all':
+            default:
+                // All active products
+                $products = Product::with('customization')
+                    ->where('is_active', true)
+                    ->get();
+                break;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $products,
+            'redemption_type' => $subscription->redemption_type,
+            'subscription_name' => $subscription->name,
+        ]);
+    }
 }

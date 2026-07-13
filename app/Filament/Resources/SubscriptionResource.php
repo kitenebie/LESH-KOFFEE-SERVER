@@ -56,6 +56,35 @@ class SubscriptionResource extends Resource
                             ->label('Active')
                             ->default(true),
                     ])->columns(2),
+
+                \Filament\Schemas\Components\Section::make('Eligible Items')
+                    ->description('Control which products can be redeemed with this subscription')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('redemption_type')
+                            ->label('Redemption Type')
+                            ->options([
+                                'all' => 'All Products',
+                                'category' => 'By Category',
+                                'products' => 'Specific Products',
+                            ])
+                            ->default('all')
+                            ->required()
+                            ->live(),
+                        \Filament\Forms\Components\Select::make('eligibleCategories')
+                            ->label('Eligible Categories')
+                            ->relationship('eligibleCategories', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('redemption_type') === 'category'),
+                        \Filament\Forms\Components\Select::make('eligibleProducts')
+                            ->label('Eligible Products')
+                            ->relationship('eligibleProducts', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('redemption_type') === 'products'),
+                    ])->columns(1),
             ]);
     }
 

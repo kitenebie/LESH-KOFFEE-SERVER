@@ -103,6 +103,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     Route::post('/subscriptions/subscribe', [SubscriptionController::class, 'subscribe']);
     Route::get('/subscriptions/my', [SubscriptionController::class, 'mySubscriptions']);
     Route::post('/subscriptions/redeem', [SubscriptionController::class, 'redeem']);
+    Route::get('/subscriptions/{id}/eligible-products', [SubscriptionController::class, 'eligibleProducts']);
 
     // Vouchers
     Route::get('/vouchers', [VoucherController::class, 'index']);
