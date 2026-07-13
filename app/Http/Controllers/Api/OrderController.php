@@ -85,6 +85,8 @@ class OrderController extends Controller
             $data = array_merge($validated, [
                 'user_id' => $user->id,
                 'is_admin_order' => true,
+                'fulfillment' => 'dine-in',
+                'ref_no' => $validated['table_no'] ?? null,
             ]);
 
             $order = $this->orderService->createOrder($data);
