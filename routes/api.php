@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\AdminScanController;
 use App\Http\Controllers\Api\MembershipCardController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\LoyaltyController;
@@ -119,6 +120,11 @@ Route::post('/vouchers/claim-by-code', [VoucherController::class, 'claimByCode']
     Route::post('/ratings/order', [RatingController::class, 'rateOrder']);
     Route::get('/ratings/product/{id}', [RatingController::class, 'productRatings']);
     Route::get('/ratings/order/{orderId}', [RatingController::class, 'orderRatings']);
+
+    // Admin Scanner (QR processing)
+    Route::post('/admin/scan/process-order-qr', [AdminScanController::class, 'processOrderQR']);
+    Route::post('/admin/scan/verify-order', [AdminScanController::class, 'verifyOrder']);
+    Route::post('/admin/scan/subscription-redeem', [SubscriptionController::class, 'adminRedeem']);
 });
 
 // ─── WEBHOOK ROUTES (server-to-server, no user auth) ──────────────────────────
