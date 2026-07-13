@@ -55,4 +55,50 @@ class OrderController extends Controller
             ], 422);
         }
     }
+
+    /**
+     * Admin-only: Create an order on behalf of a walk-in customer.
+     * Only super-admin can use this endpoint.
+     */
+    public function adminCreate(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'super-admin') {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        $validated = $request->validate([
+            'customer_name' => 'nullable|string|max:255',
+            'table_no' => 'nullable|string|max:10',
+            'type' => 'required|string|in:dine-in,takeout,delivery',
+            'payment_method' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'subtotal' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            $data = array_merge($validated, [
+                'user_id' => $user->id,
+                'is_admin_order' => true,
+            ]);
+
+            $order = $this->orderService->createOrder($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $order,
+                'message' => 'Admin order created successfully.',
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }

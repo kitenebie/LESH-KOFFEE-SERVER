@@ -71,6 +71,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     // Orders
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/orders/admin-create', [OrderController::class, 'adminCreate']);
 
     // Wallet (read balance + debit only — top-up is done via webhook)
     Route::get('/wallet', [WalletController::class, 'index']);
