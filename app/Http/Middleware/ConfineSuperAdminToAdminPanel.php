@@ -15,6 +15,11 @@ class ConfineSuperAdminToAdminPanel
         $user = auth()->user();
 
         if ($user && $user->hasRole('super_admin')) {
+            // Skip Livewire internal requests (they use POST to /livewire/*)
+            if ($request->is('livewire/*') || $request->header('X-Livewire')) {
+                return $next($request);
+            }
+
             $allowed = collect($this->allowedRoutes)
                 ->contains(fn ($pattern) => $request->routeIs($pattern));
 
