@@ -17,6 +17,12 @@ class VoucherController extends Controller
     public function index(): JsonResponse
     {
         $userId = Auth::id();
+        $user = Auth::user();
+
+        // Only regular users can see vouchers
+        if ($user && $user->hasRole(['admin', 'super_admin'])) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
 
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
@@ -41,6 +47,12 @@ class VoucherController extends Controller
     public function unclaimed(): JsonResponse
     {
         $userId = Auth::id();
+        $user = Auth::user();
+
+        // Only regular users can see vouchers
+        if ($user && $user->hasRole(['admin', 'super_admin'])) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
 
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
