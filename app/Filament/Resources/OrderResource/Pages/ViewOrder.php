@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\OrderResource\Pages;
 
 use App\Filament\Resources\OrderResource;
-use Filament\Infolists\Components\Section;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\Grid;
-use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\TextEntry;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\RepeatableEntry;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Schema;
 use Filament\Actions;
