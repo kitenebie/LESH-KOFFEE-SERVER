@@ -70,6 +70,14 @@ class OrderService
         // Combine voucher + perk discounts
         $totalDiscount = $voucherResult['total_discount'] + $perkDiscount;
         $data['discount'] = $totalDiscount;
+
+        // Save discount breakdown
+        $data['subscription_discount'] = (float) ($data['subscription_discount'] ?? 0);
+        $data['voucher_discount'] = $voucherResult['total_discount'];
+        $data['perk_discount'] = $perkDiscount;
+        $data['voucher_codes'] = $data['voucherCode'] ?? $data['voucher_codes'] ?? null;
+        $data['subscription_items_used'] = (int) ($data['subscription_items_used'] ?? 0);
+
         $data['total'] = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $totalDiscount, 2));
         $total = $data['total'];
 

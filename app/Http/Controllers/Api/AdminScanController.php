@@ -52,6 +52,10 @@ class AdminScanController extends Controller
             'delivery_fee' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'voucherCode' => 'nullable|string|max:100',
+            'subscription_discount' => 'nullable|numeric|min:0',
+            'voucher_discount' => 'nullable|numeric|min:0',
+            'perk_discount' => 'nullable|numeric|min:0',
+            'subscription_items_used' => 'nullable|integer|min:0',
             'total' => 'required|numeric|min:0',
         ]);
 
@@ -81,11 +85,16 @@ class AdminScanController extends Controller
             $usedVoucherIds = $voucherResult['used_voucher_ids'];
         }
 
-        $total = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $discount, 2));
+        // Combine all discounts: subscription + voucher + perk
+        $subscriptionDiscount = (float) ($validated['subscription_discount'] ?? 0);
+        $voucherDiscount = $discount > 0 ? $discount : (float) ($validated['voucher_discount'] ?? 0);
+        $perkDiscount = (float) ($validated['perk_discount'] ?? 0);
+        $totalDiscount = $subscriptionDiscount + $voucherDiscount + $perkDiscount;
+        $total = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $totalDiscount, 2));
 
         // ─── CREATE ORDER ATOMICALLY ─────────────────────────────────────────
         try {
-            $order = DB::transaction(function () use ($validated, $recalculated, $discount, $total, $admin, $usedVoucherIds) {
+            $order = DB::transaction(function () use ($validated, $recalculated, $totalDiscount, $subscriptionDiscount, $voucherDiscount, $perkDiscount, $total, $admin, $usedVoucherIds) {
                 $order = Order::create([
                     'user_id' => $validated['user_id'],
                     'order_number' => $validated['order_number'],
@@ -99,7 +108,12 @@ class AdminScanController extends Controller
                     'cashier' => $admin->name ?? 'Admin',
                     'subtotal' => $recalculated['subtotal'],
                     'delivery_fee' => $recalculated['delivery_fee'],
-                    'discount' => $discount,
+                    'discount' => $totalDiscount,
+                    'subscription_discount' => $subscriptionDiscount,
+                    'voucher_discount' => $voucherDiscount,
+                    'perk_discount' => $perkDiscount,
+                    'voucher_codes' => $validated['voucherCode'] ?? null,
+                    'subscription_items_used' => (int) ($validated['subscription_items_used'] ?? 0),
                     'total' => $total,
                 ]);
 

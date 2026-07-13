@@ -88,6 +88,12 @@ class Order extends Model
         'subtotal',
         'delivery_fee',
         'discount',
+        'subscription_discount',
+        'voucher_discount',
+        'perk_discount',
+        'voucher_codes',
+        'subscription_id',
+        'subscription_items_used',
         'total',
     ];
 
@@ -96,6 +102,10 @@ class Order extends Model
         'subtotal' => 'decimal:2',
         'delivery_fee' => 'decimal:2',
         'discount' => 'decimal:2',
+        'subscription_discount' => 'decimal:2',
+        'voucher_discount' => 'decimal:2',
+        'perk_discount' => 'decimal:2',
+        'subscription_items_used' => 'integer',
         'total' => 'decimal:2',
         'amount_paid' => 'decimal:2',
         'payment_fee' => 'decimal:2',

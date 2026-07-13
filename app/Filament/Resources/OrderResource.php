@@ -103,6 +103,27 @@ class OrderResource extends Resource
                             ->numeric()
                             ->required()
                             ->prefix('₱'),
+                        \Filament\Forms\Components\TextInput::make('subscription_discount')
+                            ->numeric()
+                            ->default(0)
+                            ->prefix('₱')
+                            ->label('Subscription Disc.'),
+                        \Filament\Forms\Components\TextInput::make('voucher_discount')
+                            ->numeric()
+                            ->default(0)
+                            ->prefix('₱')
+                            ->label('Voucher Disc.'),
+                        \Filament\Forms\Components\TextInput::make('perk_discount')
+                            ->numeric()
+                            ->default(0)
+                            ->prefix('₱')
+                            ->label('Perk Disc.'),
+                        \Filament\Forms\Components\TextInput::make('voucher_codes')
+                            ->label('Voucher Codes'),
+                        \Filament\Forms\Components\TextInput::make('subscription_items_used')
+                            ->numeric()
+                            ->default(0)
+                            ->label('Sub Items Used'),
                     ])->columns(2),
 
                 \Filament\Schemas\Components\Section::make('Order Items')

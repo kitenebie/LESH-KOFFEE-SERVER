@@ -39,6 +39,12 @@ class OrderRepository implements OrderRepositoryInterface
             'subtotal' => $data['subtotal'],
             'delivery_fee' => $data['delivery_fee'] ?? 0,
             'discount' => $data['discount'] ?? 0,
+            'subscription_discount' => $data['subscription_discount'] ?? 0,
+            'voucher_discount' => $data['voucher_discount'] ?? 0,
+            'perk_discount' => $data['perk_discount'] ?? 0,
+            'voucher_codes' => $data['voucher_codes'] ?? null,
+            'subscription_id' => $data['subscription_id'] ?? null,
+            'subscription_items_used' => $data['subscription_items_used'] ?? 0,
             'total' => $data['total'],
         ]);
 
