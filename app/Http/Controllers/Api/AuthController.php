@@ -25,7 +25,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::with('leshPoints')->where('email', $request->input('email'))->first();
+        $user = User::with(['leshPoints', 'roles'])->where('email', $request->input('email'))->first();
 
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             return response()->json([
@@ -191,7 +191,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $user->load('leshPoints');
+        $user->load(['leshPoints', 'roles']);
 
         return response()->json([
             'success' => true,
