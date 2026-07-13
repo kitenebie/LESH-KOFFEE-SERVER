@@ -3,14 +3,12 @@
 namespace App\Filament\Resources\OrderResource\Pages;
 
 use App\Filament\Resources\OrderResource;
-use Filament\Infolists\Infolist;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\Grid;
-use Filament\Infolists\Components\Group;
 use Filament\Infolists\Components\RepeatableEntry;
-use Filament\Infolists\Components\IconEntry;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Schema;
 use Filament\Actions;
 
 class ViewOrder extends ViewRecord
@@ -24,10 +22,10 @@ class ViewOrder extends ViewRecord
         ];
     }
 
-    public function infolist(Infolist $infolist): Infolist
+    public function infolist(Schema $schema): Schema
     {
-        return $infolist
-            ->schema([
+        return $schema
+            ->components([
                 // ─── Order Header ────────────────────────────────────────
                 Section::make('Order Details')
                     ->icon('heroicon-o-shopping-cart')
@@ -65,8 +63,8 @@ class ViewOrder extends ViewRecord
                                     default => 'gray',
                                 })
                                 ->formatStateUsing(fn (string $state): string => match ($state) {
-                                    'DineIn' => '🍽️ Dine In',
-                                    'Delivery' => '🚗 Delivery',
+                                    'DineIn' => 'Dine In',
+                                    'Delivery' => 'Delivery',
                                     default => $state,
                                 }),
                             TextEntry::make('current_step')
