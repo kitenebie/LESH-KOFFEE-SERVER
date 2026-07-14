@@ -16,8 +16,6 @@ class AuditTrail extends Page implements HasTable
 
     protected static ?int $navigationSort = 99;
 
-    protected static string $view = 'filament.pages.audit-trail';
-
     public static function getNavigationIcon(): string|\BackedEnum|null
     {
         return 'heroicon-o-clipboard-document-list';
@@ -36,6 +34,11 @@ class AuditTrail extends Page implements HasTable
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
         return 'Audit Trail';
+    }
+
+    public function getView(): string
+    {
+        return 'filament.pages.audit-trail';
     }
 
     public function table(Table $table): Table
