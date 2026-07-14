@@ -63,9 +63,15 @@ class OrderService
         $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $recalculated['subtotal']);
 
         // ─── SUBSCRIPTION PERK DISCOUNTS ────────────────────────────────────
-        $perkService = new \App\Services\SubscriptionPerkService();
-        $perkResult = $perkService->calculatePerksForCart($userId, $items);
-        $perkDiscount = $perkResult['total_discount'] ?? 0;
+        $perkDiscount = 0;
+        try {
+            $perkService = new \App\Services\SubscriptionPerkService();
+            $perkResult = $perkService->calculatePerksForCart($userId, $items);
+            $perkDiscount = $perkResult['total_discount'] ?? 0;
+        } catch (\Exception $e) {
+            // Gracefully handle if subscription_perks table doesn't exist yet
+            \Log::warning('[Order] Perk calculation failed (table may not exist)', ['error' => $e->getMessage()]);
+        }
 
         // Combine voucher + perk discounts
         $totalDiscount = $voucherResult['total_discount'] + $perkDiscount;

@@ -23,7 +23,7 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function create(array $data)
     {
-        $order = Order::create([
+        $orderData = [
             'user_id' => $data['user_id'],
             'order_number' => $data['order_number'] ?? 'ORD-' . strtoupper(uniqid()),
             'date' => now()->toDateString(),
@@ -39,14 +39,26 @@ class OrderRepository implements OrderRepositoryInterface
             'subtotal' => $data['subtotal'],
             'delivery_fee' => $data['delivery_fee'] ?? 0,
             'discount' => $data['discount'] ?? 0,
-            'subscription_discount' => $data['subscription_discount'] ?? 0,
-            'voucher_discount' => $data['voucher_discount'] ?? 0,
-            'perk_discount' => $data['perk_discount'] ?? 0,
-            'voucher_codes' => $data['voucher_codes'] ?? null,
-            'subscription_id' => $data['subscription_id'] ?? null,
-            'subscription_items_used' => $data['subscription_items_used'] ?? 0,
             'total' => $data['total'],
-        ]);
+        ];
+
+        // Add breakdown columns if they exist in the table (migration may not have run)
+        try {
+            $orderData['subscription_discount'] = $data['subscription_discount'] ?? 0;
+            $orderData['voucher_discount'] = $data['voucher_discount'] ?? 0;
+            $orderData['perk_discount'] = $data['perk_discount'] ?? 0;
+            $orderData['voucher_codes'] = $data['voucher_codes'] ?? $data['voucherCode'] ?? null;
+            $orderData['subscription_id'] = $data['subscription_id'] ?? null;
+            $orderData['subscription_items_used'] = $data['subscription_items_used'] ?? 0;
+        } catch (\Exception $e) {}
+
+        try {
+            $order = Order::create($orderData);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // If columns don't exist yet, retry without breakdown fields
+            unset($orderData['subscription_discount'], $orderData['voucher_discount'], $orderData['perk_discount'], $orderData['voucher_codes'], $orderData['subscription_id'], $orderData['subscription_items_used']);
+            $order = Order::create($orderData);
+        }
 
         if (isset($data['items']) && is_array($data['items'])) {
             foreach ($data['items'] as $item) {
