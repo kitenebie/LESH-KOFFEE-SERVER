@@ -13,7 +13,9 @@ use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, HasPanelShield;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, HasPanelShield, \App\Traits\Auditable;
+
+    protected array $auditExclude = ['password', 'remember_token', 'lesh_cvv', 'lesh_acc', 'lesh_exp'];
 
     /**
      * Temporary storage for raw CVV (NOT persisted to DB).

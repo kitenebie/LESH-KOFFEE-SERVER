@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class LeshWallet extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\Auditable;
 
     protected $fillable = [
         'user_id',

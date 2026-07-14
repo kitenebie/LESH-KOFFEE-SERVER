@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     // ─── Auto-award stamps & loyalty when order is marked Completed ────────
 
