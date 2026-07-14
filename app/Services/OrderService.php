@@ -61,10 +61,6 @@ class OrderService
         $recalculated = $this->recalculateOrderTotal($items, (float) ($data['delivery_fee'] ?? 0), 0);
         $data['subtotal'] = $recalculated['subtotal'];
 
-        // ─── SERVER-SIDE VOUCHER VALIDATION ────────────────────────────────
-        $voucherCodes = $data['voucherCode'] ?? null;
-        $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $recalculated['subtotal']);
-
         // ─── SERVER-SIDE SUBSCRIPTION DISCOUNT (same logic as Cart) ───────────
         // Get active subscription balance
         $subscriptionDiscount = 0;
@@ -116,6 +112,11 @@ class OrderService
         } catch (\Exception $e) {
             Log::warning('[Order] Subscription discount calc failed', ['error' => $e->getMessage()]);
         }
+
+        // ─── SERVER-SIDE VOUCHER VALIDATION (applied to subtotal AFTER subscription) ─
+        $eligibleSubtotal = max(0, $recalculated['subtotal'] - $subscriptionDiscount);
+        $voucherCodes = $data['voucherCode'] ?? null;
+        $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $eligibleSubtotal);
 
         // ─── SUBSCRIPTION PERK DISCOUNTS ────────────────────────────────────
         $perkDiscount = 0;
