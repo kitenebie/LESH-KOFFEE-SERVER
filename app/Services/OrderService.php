@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\LeshPoints;
 use App\Models\ProductCustomization;
 use App\Models\UserSubscription;
+use App\Models\Subscription;
 use App\Models\Category;
 use App\Models\Voucher;
 use App\Models\UserVoucher;
@@ -78,9 +79,27 @@ class OrderService
             if ($activeSub) {
                 $itemsAvailable = $activeSub->items_available_now;
                 if ($itemsAvailable > 0) {
-                    // Get eligible product IDs (from subscription's eligible categories/products)
-                    // For now: get base prices of all items, sort desc, cover up to itemsAvailable
+                    // Get eligible category/product IDs based on subscription's redemption_type
+                    $subscription = Subscription::with(['eligibleCategories', 'eligibleProducts'])->find($activeSub->subscription_id);
+                    $eligibleCategoryIds = null;
+                    $eligibleProductIds = null;
+
+                    if ($subscription) {
+                        if ($subscription->redemption_type === 'category') {
+                            $eligibleCategoryIds = $subscription->eligibleCategories->pluck('id')->toArray();
+                        } elseif ($subscription->redemption_type === 'products') {
+                            $eligibleProductIds = $subscription->eligibleProducts->pluck('id')->toArray();
+                        }
+                        // 'all' = no filter
+                    }
+
+                    // Collect base prices of ELIGIBLE items only, sorted highest first
                     $basePrices = collect($recalculated['items'])
+                        ->filter(function ($item) use ($eligibleCategoryIds, $eligibleProductIds) {
+                            if ($eligibleCategoryIds !== null) return in_array((int) $item['category_id'], $eligibleCategoryIds);
+                            if ($eligibleProductIds !== null) return in_array((int) $item['product_id'], $eligibleProductIds);
+                            return true; // 'all' type
+                        })
                         ->flatMap(fn ($item) => array_fill(0, (int) $item['quantity'], (float) $item['base_price']))
                         ->sortDesc()
                         ->values();
@@ -273,6 +292,7 @@ class OrderService
 
             $recalculatedItems[] = [
                 'product_id' => $productId,
+                'category_id' => $product->category_id,
                 'quantity' => $quantity,
                 'base_price' => (float) $product->price,
                 'unit_price' => $unitPrice,

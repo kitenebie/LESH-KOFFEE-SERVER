@@ -4,27 +4,24 @@ namespace App\Services;
 
 use App\Models\CartItem;
 use App\Models\UserCartMeta;
-use App\Models\UserSubscription;
 use App\Models\Product;
 use App\Models\ProductCustomization;
+use App\Models\Subscription;
+use App\Models\UserSubscription;
 use App\Models\Voucher;
 use App\Models\UserVoucher;
-use App\Models\Subscription;
 use Illuminate\Support\Facades\Log;
 
 class CartCalculationService
 {
     /**
-     * Calculate the full cart breakdown for a user.
-     * Auto-applies subscription, vouchers, and perks.
-     * 
-     * Returns complete computed state for the frontend to display directly.
+     * Calculate the full cart state for a user.
+     * Returns items, meta, and computed totals (subscription + voucher + perk discounts).
      */
     public function calculate(int $userId): array
     {
-        $items = CartItem::with('product.category')
-            ->where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
+        $items = CartItem::where('user_id', $userId)
+            ->with('product.category')
             ->get();
 
         $meta = UserCartMeta::firstOrCreate(
@@ -32,33 +29,11 @@ class CartCalculationService
             ['fulfillment_mode' => 'DineIn', 'applied_voucher_codes' => [], 'use_subscription' => false, 'subscription_items_to_use' => 0]
         );
 
-        // Early return for empty cart
-        if ($items->isEmpty()) {
-            return [
-                'items' => [],
-                'meta' => [
-                    'fulfillment_mode' => $meta->fulfillment_mode,
-                    'applied_voucher_codes' => $meta->applied_voucher_codes ?? [],
-                    'use_subscription' => (bool) $meta->use_subscription,
-                    'subscription_items_to_use' => (int) $meta->subscription_items_to_use,
-                ],
-                'computed' => [
-                    'subtotal' => 0, 'delivery_fee' => 0, 'subscription_discount' => 0,
-                    'subscription_items_covered' => 0, 'subscription_name' => null,
-                    'voucher_discount' => 0, 'applied_vouchers' => [],
-                    'perk_discount' => 0, 'perks_applied' => [],
-                    'total_discount' => 0, 'total' => 0, 'item_count' => 0,
-                ],
-            ];
-        }
-
         // ─── RECALCULATE ITEM PRICES FROM DB ─────────────────────────────
         $cartItems = [];
         $subtotal = 0;
 
         foreach ($items as $item) {
-            if (!$item->product) continue; // Skip orphaned cart items
-
             $basePrice = (float) ($item->product?->price ?? 0);
             $extraPrice = $this->calculateCustomizationExtra($item->product_id, $item->customization);
             $unitPrice = $basePrice + $extraPrice;
@@ -100,7 +75,7 @@ class CartCalculationService
                 ->latest()
                 ->first();
 
-            if ($activeSub && $meta->use_subscription) {
+            if ($activeSub) { // Always apply subscription if user has active one
                 $activeSubscriptionName = $activeSub->subscription?->name;
                 $itemsAvailable = $activeSub->items_available_now;
 
@@ -143,101 +118,72 @@ class CartCalculationService
         $eligibleSubtotal = max(0, $subtotal - $subscriptionDiscount);
 
         $voucherCodes = $meta->applied_voucher_codes ?? [];
+
         foreach ($voucherCodes as $code) {
-            $userVoucher = UserVoucher::where('user_id', $userId)
-                ->whereHas('voucher', fn ($q) => $q->where('code', $code))
-                ->where('is_used', false)
-                ->with('voucher')
-                ->first();
+            try {
+                $voucher = Voucher::where('code', $code)->where('is_active', true)->first();
+                if (!$voucher) continue;
 
-            if (!$userVoucher || !$userVoucher->voucher) continue;
+                // Check user hasn't already used it
+                $userVoucher = UserVoucher::where('user_id', $userId)
+                    ->where('voucher_id', $voucher->id)
+                    ->first();
 
-            $voucher = $userVoucher->voucher;
+                if (!$userVoucher || $userVoucher->is_used) continue;
 
-            // Check min order
-            if ($voucher->min_order_amount && $eligibleSubtotal < $voucher->min_order_amount) continue;
-
-            // Calculate discount
-            $disc = 0;
-            if ($voucher->type === 'fixed') {
-                if ($eligibleSubtotal >= $voucher->discount) {
-                    $disc = (float) $voucher->discount;
+                // Calculate discount
+                $discount = 0;
+                if ($voucher->discount_type === 'percent') {
+                    $discount = round($eligibleSubtotal * ($voucher->discount_value / 100), 2);
+                    if ($voucher->max_discount && $discount > $voucher->max_discount) {
+                        $discount = $voucher->max_discount;
+                    }
+                } else {
+                    $discount = min($voucher->discount_value, $eligibleSubtotal);
                 }
-            } else {
-                // percent
-                $disc = $eligibleSubtotal * ((float) $voucher->discount / 100);
-                if ($voucher->max_discount && $disc > $voucher->max_discount) {
-                    $disc = (float) $voucher->max_discount;
-                }
-            }
 
-            if ($disc > 0) {
-                $voucherDiscount += $disc;
-                $appliedVouchers[] = [
-                    'code' => $code,
-                    'discount' => round($disc, 2),
-                    'type' => $voucher->type,
-                    'label' => $voucher->name ?? $code,
-                    'min_order_amount' => $voucher->min_order_amount,
-                    'max_discount' => $voucher->max_discount,
-                ];
+                if ($discount > 0) {
+                    $voucherDiscount += $discount;
+                    $eligibleSubtotal = max(0, $eligibleSubtotal - $discount);
+                    $appliedVouchers[] = [
+                        'code' => $code,
+                        'voucher_id' => $voucher->id,
+                        'discount_type' => $voucher->discount_type,
+                        'discount_value' => $voucher->discount_value,
+                        'applied_discount' => $discount,
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::warning('[CartCalc] Voucher calc failed', ['code' => $code, 'error' => $e->getMessage()]);
             }
         }
-        $voucherDiscount = round($voucherDiscount, 2);
 
-        // ─── PERK DISCOUNT ───────────────────────────────────────────────
+        // ─── SUBSCRIPTION PERK DISCOUNTS ────────────────────────────────────
         $perkDiscount = 0;
         $perksApplied = [];
 
         try {
-            $activeSub = UserSubscription::where('user_id', $userId)->active()->latest()->first();
-
-            if ($activeSub) {
-                $subscription = Subscription::with(['perks' => fn ($q) => $q->where('is_active', true), 'perks.category'])
-                    ->find($activeSub->subscription_id);
-
-                if ($subscription && $subscription->perks->isNotEmpty()) {
-                    foreach ($subscription->perks as $perk) {
-                        if ($perk->perk_type !== 'category_discount' || !$perk->category_id) continue;
-
-                        // Sum prices of items in this perk's category
-                        $categoryItems = array_filter($cartItems, fn ($ci) => (int) $ci['product']['categoryId'] === $perk->category_id);
-                        if (empty($categoryItems)) continue;
-
-                        $perkAmount = 0;
-                        foreach ($categoryItems as $ci) {
-                            $itemTotal = $ci['unit_price'] * $ci['quantity'];
-                            if ($perk->discount_type === 'percent') {
-                                $d = $itemTotal * ((float) $perk->discount_value / 100);
-                                $perkAmount += $perk->max_discount ? min($d, (float) $perk->max_discount) : $d;
-                            } else {
-                                $perkAmount += min((float) $perk->discount_value, $ci['unit_price']) * $ci['quantity'];
-                            }
-                        }
-
-                        if ($perkAmount > 0) {
-                            $perkDiscount += $perkAmount;
-                            $perksApplied[] = [
-                                'category_name' => $perk->category?->name ?? '',
-                                'discount_type' => $perk->discount_type,
-                                'discount_value' => (float) $perk->discount_value,
-                                'applied_discount' => round($perkAmount, 2),
-                            ];
-                        }
-                    }
-                }
-            }
+            $perkService = new SubscriptionPerkService();
+            $cartItemsForPerk = array_map(function ($ci) {
+                return [
+                    'product_id' => $ci['product_id'],
+                    'quantity' => $ci['quantity'],
+                    'price' => $ci['base_price'],
+                ];
+            }, $cartItems);
+            $perkResult = $perkService->calculatePerksForCart($userId, $cartItemsForPerk);
+            $perkDiscount = $perkResult['total_discount'] ?? 0;
+            $perksApplied = $perkResult['perks_applied'] ?? [];
         } catch (\Exception $e) {
-            Log::warning('[CartCalc] Perk discount failed', ['error' => $e->getMessage()]);
+            Log::warning('[CartCalc] Perk calculation failed', ['error' => $e->getMessage()]);
         }
-        $perkDiscount = round($perkDiscount, 2);
 
         // ─── DELIVERY FEE ────────────────────────────────────────────────
         $deliveryFee = $meta->fulfillment_mode === 'Delivery' ? 49 : 0;
 
-        // ─── TOTAL ───────────────────────────────────────────────────────
+        // ─── TOTALS ──────────────────────────────────────────────────────
         $totalDiscount = $subscriptionDiscount + $voucherDiscount + $perkDiscount;
-        $total = max(0, round($subtotal - $totalDiscount + $deliveryFee, 2));
+        $total = max(0, round($subtotal + $deliveryFee - $totalDiscount, 2));
 
         return [
             'items' => $cartItems,
@@ -257,9 +203,8 @@ class CartCalculationService
                 'applied_vouchers' => $appliedVouchers,
                 'perk_discount' => $perkDiscount,
                 'perks_applied' => $perksApplied,
-                'total_discount' => round($totalDiscount, 2),
+                'total_discount' => $totalDiscount,
                 'total' => $total,
-                'item_count' => array_sum(array_column($cartItems, 'quantity')),
             ],
         ];
     }
@@ -269,7 +214,9 @@ class CartCalculationService
      */
     private function calculateCustomizationExtra(int $productId, ?array $customization): float
     {
-        if (!$customization || !isset($customization['selections'])) return 0;
+        if (!$customization || !isset($customization['selections'])) {
+            return 0;
+        }
 
         $productCustomization = ProductCustomization::where('product_id', $productId)->first();
         $customData = $productCustomization?->customizations ?? [];
@@ -289,6 +236,6 @@ class CartCalculationService
             }
         }
 
-        return $extraPrice;
+        return round($extraPrice, 2);
     }
 }
