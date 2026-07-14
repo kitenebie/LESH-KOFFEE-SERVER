@@ -157,22 +157,38 @@ class CartController extends Controller
             'items.*.customization' => 'nullable|array',
         ]);
 
-        // Clear existing cart
-        CartItem::where('user_id', $userId)->delete();
+        $existingItems = CartItem::where('user_id', $userId)->get();
+        $processedIds = [];
 
-        // Insert new items
+        // Update existing or create new items
         foreach ($validated['items'] as $itemData) {
             $product = Product::find($itemData['product_id']);
             $unitPrice = $this->calculateUnitPrice($product, $itemData['customization'] ?? null);
+            $customization = $itemData['customization'] ?? null;
 
-            CartItem::create([
-                'user_id' => $userId,
-                'product_id' => $itemData['product_id'],
-                'quantity' => $itemData['quantity'],
-                'customization' => $itemData['customization'] ?? null,
-                'unit_price' => $unitPrice,
-            ]);
+            // Find existing item with same product + same customization
+            $existing = $existingItems->first(function ($item) use ($itemData, $customization) {
+                return $item->product_id == $itemData['product_id']
+                    && json_encode($item->customization) === json_encode($customization);
+            });
+
+            if ($existing) {
+                $existing->update(['quantity' => $itemData['quantity'], 'unit_price' => $unitPrice]);
+                $processedIds[] = $existing->id;
+            } else {
+                $newItem = CartItem::create([
+                    'user_id' => $userId,
+                    'product_id' => $itemData['product_id'],
+                    'quantity' => $itemData['quantity'],
+                    'customization' => $customization,
+                    'unit_price' => $unitPrice,
+                ]);
+                $processedIds[] = $newItem->id;
+            }
         }
+
+        // Remove items that are no longer in the cart
+        CartItem::where('user_id', $userId)->whereNotIn('id', $processedIds)->delete();
 
         return response()->json([
             'success' => true,

@@ -109,6 +109,17 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Avatar accessor — returns stored avatar or generates DiceBear PNG from user ID.
+     */
+    public function getAvatarAttribute($value): string
+    {
+        if (!empty($value)) {
+            return $value;
+        }
+        return "https://api.dicebear.com/9.x/fun-emoji/png?seed={$this->id}";
+    }
+
+    /**
      * Get subscription balance from active UserSubscription (source of truth).
      */
     public function getSubscriptionBalanceAttribute(): int
