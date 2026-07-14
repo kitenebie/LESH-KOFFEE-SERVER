@@ -88,6 +88,10 @@ class OrderService
                     $covered = min($itemsAvailable, $basePrices->count());
                     $subscriptionDiscount = round($basePrices->take($covered)->sum(), 2);
                     $subscriptionItemsUsed = $covered;
+
+                    // Deduct items from subscription balance
+                    $activeSub->useItems($covered);
+                    $data['subscription_id'] = $activeSub->subscription_id;
                 }
             }
         } catch (\Exception $e) {

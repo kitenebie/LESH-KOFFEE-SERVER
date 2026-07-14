@@ -219,7 +219,7 @@ class CartController extends Controller
 
         $meta = UserCartMeta::updateOrCreate(
             ['user_id' => $userId],
-            array_filter($validated, fn ($v) => $v !== null)
+            collect($validated)->filter(fn ($v) => !is_null($v))->toArray()
         );
 
         return response()->json([

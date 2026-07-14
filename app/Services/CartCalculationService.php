@@ -32,11 +32,33 @@ class CartCalculationService
             ['fulfillment_mode' => 'DineIn', 'applied_voucher_codes' => [], 'use_subscription' => false, 'subscription_items_to_use' => 0]
         );
 
+        // Early return for empty cart
+        if ($items->isEmpty()) {
+            return [
+                'items' => [],
+                'meta' => [
+                    'fulfillment_mode' => $meta->fulfillment_mode,
+                    'applied_voucher_codes' => $meta->applied_voucher_codes ?? [],
+                    'use_subscription' => (bool) $meta->use_subscription,
+                    'subscription_items_to_use' => (int) $meta->subscription_items_to_use,
+                ],
+                'computed' => [
+                    'subtotal' => 0, 'delivery_fee' => 0, 'subscription_discount' => 0,
+                    'subscription_items_covered' => 0, 'subscription_name' => null,
+                    'voucher_discount' => 0, 'applied_vouchers' => [],
+                    'perk_discount' => 0, 'perks_applied' => [],
+                    'total_discount' => 0, 'total' => 0, 'item_count' => 0,
+                ],
+            ];
+        }
+
         // ─── RECALCULATE ITEM PRICES FROM DB ─────────────────────────────
         $cartItems = [];
         $subtotal = 0;
 
         foreach ($items as $item) {
+            if (!$item->product) continue; // Skip orphaned cart items
+
             $basePrice = (float) ($item->product?->price ?? 0);
             $extraPrice = $this->calculateCustomizationExtra($item->product_id, $item->customization);
             $unitPrice = $basePrice + $extraPrice;

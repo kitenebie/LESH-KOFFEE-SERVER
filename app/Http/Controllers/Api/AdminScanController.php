@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductCustomization;
 use App\Models\Voucher;
 use App\Models\UserVoucher;
+use App\Models\UserSubscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -131,6 +132,17 @@ class AdminScanController extends Controller
                 // Mark vouchers as used
                 if (!empty($usedVoucherIds)) {
                     UserVoucher::whereIn('id', $usedVoucherIds)->update(['is_used' => true]);
+                }
+
+                // Deduct subscription items if used
+                $subItemsUsed = (int) ($validated['subscription_items_used'] ?? 0);
+                if ($subItemsUsed > 0) {
+                    $activeSub = UserSubscription::where('user_id', $validated['user_id'])
+                        ->active()
+                        ->where('items_remaining', '>', 0)
+                        ->latest()
+                        ->first();
+                    $activeSub?->useItems($subItemsUsed);
                 }
 
                 return $order->load('items.product');
