@@ -104,8 +104,8 @@ class AuditTrail extends Page implements HasTable
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->modalHeading(fn (AuditLog $record) => "{$record->action} — {$record->model_label}")
+                \Filament\Actions\ViewAction::make()
+                    ->modalHeading(fn (AuditLog $record) => ucfirst($record->action) . " — " . $record->model_label)
                     ->modalContent(fn (AuditLog $record) => view('filament.pages.audit-detail', ['record' => $record])),
             ])
             ->defaultSort('created_at', 'desc')
