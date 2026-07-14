@@ -121,6 +121,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function subscription()
+    {
+        return $this->belongsTo(Subscription::class);
+    }
+
     public function deliveryTracking()
     {
         return $this->hasOne(DeliveryTracking::class);

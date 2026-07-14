@@ -56,8 +56,7 @@ class OrderResource extends Resource
                             ->label('Reference No.')
                             ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('fulfillment') === 'DineIn'),
                         \Filament\Forms\Components\TextInput::make('req_id')
-                            ->label('Request ID')
-                            ->disabled(),
+                            ->label('Request ID'),
                         \Filament\Forms\Components\TextInput::make('cashier'),
                     ])->columns(2),
 
@@ -85,6 +84,31 @@ class OrderResource extends Resource
                             ->required(),
                     ])->columns(2),
 
+                \Filament\Schemas\Components\Section::make('Payment')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('payment_method')
+                            ->options([
+                                'COD'         => 'Cash / COD',
+                                'wallet'      => 'Lesh Wallet',
+                                'CardEWallet' => 'Card / E-wallet',
+                                'subscription'=> 'Subscription',
+                            ]),
+                        \Filament\Forms\Components\TextInput::make('ref_code')
+                            ->label('Payment Ref Code'),
+                        \Filament\Forms\Components\TextInput::make('signature')
+                            ->label('Payment Signature'),
+                        \Filament\Forms\Components\TextInput::make('amount_paid')
+                            ->numeric()
+                            ->prefix('₱')
+                            ->label('Amount Paid'),
+                        \Filament\Forms\Components\TextInput::make('payment_fee')
+                            ->numeric()
+                            ->prefix('₱')
+                            ->label('Payment Fee'),
+                        \Filament\Forms\Components\DateTimePicker::make('paid_at')
+                            ->label('Paid At'),
+                    ])->columns(2),
+
                 \Filament\Schemas\Components\Section::make('Financials')
                     ->schema([
                         \Filament\Forms\Components\TextInput::make('subtotal')
@@ -98,32 +122,42 @@ class OrderResource extends Resource
                         \Filament\Forms\Components\TextInput::make('discount')
                             ->numeric()
                             ->default(0)
-                            ->prefix('₱'),
+                            ->prefix('₱')
+                            ->label('Total Discount'),
                         \Filament\Forms\Components\TextInput::make('total')
                             ->numeric()
                             ->required()
                             ->prefix('₱'),
+                    ])->columns(2),
+
+                \Filament\Schemas\Components\Section::make('Discount Breakdown')
+                    ->schema([
                         \Filament\Forms\Components\TextInput::make('subscription_discount')
                             ->numeric()
                             ->default(0)
                             ->prefix('₱')
-                            ->label('Subscription Disc.'),
+                            ->label('Subscription Discount'),
                         \Filament\Forms\Components\TextInput::make('voucher_discount')
                             ->numeric()
                             ->default(0)
                             ->prefix('₱')
-                            ->label('Voucher Disc.'),
+                            ->label('Voucher Discount'),
                         \Filament\Forms\Components\TextInput::make('perk_discount')
                             ->numeric()
                             ->default(0)
                             ->prefix('₱')
-                            ->label('Perk Disc.'),
+                            ->label('Perk Discount'),
                         \Filament\Forms\Components\TextInput::make('voucher_codes')
-                            ->label('Voucher Codes'),
+                            ->label('Voucher Codes Applied'),
+                        \Filament\Forms\Components\Select::make('subscription_id')
+                            ->label('Subscription Plan')
+                            ->relationship('subscription', 'name')
+                            ->searchable()
+                            ->preload(),
                         \Filament\Forms\Components\TextInput::make('subscription_items_used')
                             ->numeric()
                             ->default(0)
-                            ->label('Sub Items Used'),
+                            ->label('Subscription Items Used'),
                     ])->columns(2),
 
                 \Filament\Schemas\Components\Section::make('Order Items')
@@ -159,7 +193,8 @@ class OrderResource extends Resource
             ->columns([
                 \Filament\Tables\Columns\TextColumn::make('order_number')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->copyable(),
                 \Filament\Tables\Columns\TextColumn::make('user.name')
                     ->label('Customer')
                     ->searchable()
@@ -167,6 +202,8 @@ class OrderResource extends Resource
                 \Filament\Tables\Columns\TextColumn::make('date')
                     ->date()
                     ->sortable(),
+                \Filament\Tables\Columns\TextColumn::make('time')
+                    ->label('Time'),
                 \Filament\Tables\Columns\BadgeColumn::make('status')
                     ->colors([
                         'warning'  => 'Queued',
@@ -180,9 +217,69 @@ class OrderResource extends Resource
                         'gray'    => 'DineIn',
                         'info'    => 'Delivery',
                     ]),
-                \Filament\Tables\Columns\TextColumn::make('total')
+                \Filament\Tables\Columns\TextColumn::make('payment_method')
+                    ->label('Payment')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'wallet' => 'success',
+                        'CardEWallet' => 'info',
+                        'COD' => 'warning',
+                        'subscription' => 'primary',
+                        default => 'gray',
+                    }),
+                \Filament\Tables\Columns\TextColumn::make('subtotal')
                     ->money('PHP')
                     ->sortable(),
+                \Filament\Tables\Columns\TextColumn::make('delivery_fee')
+                    ->money('PHP')
+                    ->label('Delivery')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('subscription_discount')
+                    ->money('PHP')
+                    ->label('Sub Disc.')
+                    ->color('success')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('voucher_discount')
+                    ->money('PHP')
+                    ->label('Voucher Disc.')
+                    ->color('success')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('perk_discount')
+                    ->money('PHP')
+                    ->label('Perk Disc.')
+                    ->color('success')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('discount')
+                    ->money('PHP')
+                    ->label('Total Disc.')
+                    ->color('success'),
+                \Filament\Tables\Columns\TextColumn::make('total')
+                    ->money('PHP')
+                    ->sortable()
+                    ->weight('bold'),
+                \Filament\Tables\Columns\TextColumn::make('voucher_codes')
+                    ->label('Vouchers')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('subscription_items_used')
+                    ->label('Sub Items')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('ref_code')
+                    ->label('Pay Ref')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('amount_paid')
+                    ->money('PHP')
+                    ->label('Amt Paid')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('paid_at')
+                    ->dateTime()
+                    ->label('Paid At')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('cashier')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                \Filament\Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('status')
@@ -198,6 +295,13 @@ class OrderResource extends Resource
                     ->options([
                         'DineIn'   => 'Dine In',
                         'Delivery' => 'Delivery',
+                    ]),
+                \Filament\Tables\Filters\SelectFilter::make('payment_method')
+                    ->options([
+                        'COD'         => 'Cash / COD',
+                        'wallet'      => 'Lesh Wallet',
+                        'CardEWallet' => 'Card / E-wallet',
+                        'subscription'=> 'Subscription',
                     ]),
             ])
             ->actions([
