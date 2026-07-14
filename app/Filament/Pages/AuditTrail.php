@@ -17,10 +17,14 @@ class AuditTrail extends Page implements HasTable
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationLabel = 'Audit Trail';
     protected static ?string $title = 'Audit Trail';
-    protected static ?string $navigationGroup = 'System';
     protected static ?int $navigationSort = 99;
 
     protected static string $view = 'filament.pages.audit-trail';
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'System';
+    }
 
     public function table(Table $table): Table
     {
