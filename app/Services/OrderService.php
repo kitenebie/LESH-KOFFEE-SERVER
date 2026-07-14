@@ -8,6 +8,8 @@ use App\Services\StampQuotaService;
 use App\Models\Product;
 use App\Models\LeshPoints;
 use App\Models\ProductCustomization;
+use App\Models\UserSubscription;
+use App\Models\Category;
 use App\Models\Voucher;
 use App\Models\UserVoucher;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +64,36 @@ class OrderService
         $voucherCodes = $data['voucherCode'] ?? null;
         $voucherResult = $this->validateAndApplyVouchers($userId, $voucherCodes, $recalculated['subtotal']);
 
+        // ─── SERVER-SIDE SUBSCRIPTION DISCOUNT (same logic as Cart) ───────────
+        // Get active subscription balance
+        $subscriptionDiscount = 0;
+        $subscriptionItemsUsed = 0;
+        try {
+            $activeSub = UserSubscription::where('user_id', $userId)
+                ->active()
+                ->where('items_remaining', '>', 0)
+                ->latest()
+                ->first();
+
+            if ($activeSub) {
+                $itemsAvailable = $activeSub->items_available_now;
+                if ($itemsAvailable > 0) {
+                    // Get eligible product IDs (from subscription's eligible categories/products)
+                    // For now: get base prices of all items, sort desc, cover up to itemsAvailable
+                    $basePrices = collect($recalculated['items'])
+                        ->flatMap(fn ($item) => array_fill(0, (int) $item['quantity'], (float) $item['base_price']))
+                        ->sortDesc()
+                        ->values();
+
+                    $covered = min($itemsAvailable, $basePrices->count());
+                    $subscriptionDiscount = round($basePrices->take($covered)->sum(), 2);
+                    $subscriptionItemsUsed = $covered;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('[Order] Subscription discount calc failed', ['error' => $e->getMessage()]);
+        }
+
         // ─── SUBSCRIPTION PERK DISCOUNTS ────────────────────────────────────
         $perkDiscount = 0;
         try {
@@ -73,16 +105,16 @@ class OrderService
             \Log::warning('[Order] Perk calculation failed (table may not exist)', ['error' => $e->getMessage()]);
         }
 
-        // Combine voucher + perk discounts
-        $totalDiscount = $voucherResult['total_discount'] + $perkDiscount;
+        // Combine ALL discounts: subscription + voucher + perk
+        $totalDiscount = $subscriptionDiscount + $voucherResult['total_discount'] + $perkDiscount;
         $data['discount'] = $totalDiscount;
 
         // Save discount breakdown
-        $data['subscription_discount'] = (float) ($data['subscription_discount'] ?? 0);
+        $data['subscription_discount'] = $subscriptionDiscount;
         $data['voucher_discount'] = $voucherResult['total_discount'];
         $data['perk_discount'] = $perkDiscount;
         $data['voucher_codes'] = $data['voucherCode'] ?? $data['voucher_codes'] ?? null;
-        $data['subscription_items_used'] = (int) ($data['subscription_items_used'] ?? 0);
+        $data['subscription_items_used'] = $subscriptionItemsUsed;
 
         $data['total'] = max(0, round($recalculated['subtotal'] + $recalculated['delivery_fee'] - $totalDiscount, 2));
         $total = $data['total'];
@@ -197,6 +229,7 @@ class OrderService
         $customizations = ProductCustomization::whereIn('product_id', $productIds)->get()->keyBy('product_id');
 
         $subtotal = 0;
+        $recalculatedItems = [];
 
         foreach ($items as $item) {
             $productId = $item['product_id'] ?? null;
@@ -233,6 +266,14 @@ class OrderService
             }
 
             $subtotal += $unitPrice * $quantity;
+
+            $recalculatedItems[] = [
+                'product_id' => $productId,
+                'quantity' => $quantity,
+                'base_price' => (float) $product->price,
+                'unit_price' => $unitPrice,
+                'line_total' => $unitPrice * $quantity,
+            ];
         }
 
         $total = max(0, round($subtotal + $deliveryFee - $discount, 2));
@@ -242,6 +283,7 @@ class OrderService
             'delivery_fee' => $deliveryFee,
             'discount' => $discount,
             'total' => $total,
+            'items' => $recalculatedItems,
         ];
     }
 
