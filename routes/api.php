@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VoucherController;
 use App\Http\Controllers\Api\RatingController;
+use App\Http\Controllers\Api\CartController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,6 +74,18 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::post('/orders/admin-create', [OrderController::class, 'adminCreate']);
+
+    // Cart
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'add']);
+    Route::put('/cart/{id}', [CartController::class, 'update']);
+    Route::delete('/cart/{id}', [CartController::class, 'destroy']);
+    Route::delete('/cart', [CartController::class, 'clear']);
+    Route::post('/cart/sync', [CartController::class, 'sync']);
+    Route::get('/cart/meta', [CartController::class, 'getMeta']);
+    Route::put('/cart/meta', [CartController::class, 'updateMeta']);
+    Route::post('/cart/apply-voucher', [CartController::class, 'applyVoucher']);
+    Route::post('/cart/remove-voucher', [CartController::class, 'removeVoucher']);
 
     // Wallet (read balance + debit only — top-up is done via webhook)
     Route::get('/wallet', [WalletController::class, 'index']);

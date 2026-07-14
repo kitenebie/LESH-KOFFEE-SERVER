@@ -203,6 +203,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(UserSubscription::class);
     }
 
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    public function cartMeta()
+    {
+        return $this->hasOne(UserCartMeta::class);
+    }
+
     /**
      * Get the user's currently active (non-expired) subscription.
      */
