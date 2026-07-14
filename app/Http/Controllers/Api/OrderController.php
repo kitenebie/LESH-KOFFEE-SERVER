@@ -20,7 +20,40 @@ class OrderController extends Controller
 
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+    }
+
+    /**
+     * POST /api/orders/{orderNumber}/mark-paid
+     * Called by frontend when online payment WebView returns success.
+     * Only updates if order belongs to the user and hasn't been paid yet.
+     */
+    public function markPaid(string $orderNumber): JsonResponse
+    {
+        $userId = Auth::id();
+        if (!$userId) return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+
+        $order = \App\Models\Order::where('order_number', $orderNumber)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Order not found'], 404);
         }
+
+        // Only mark as paid if not already paid/completed (idempotent)
+        if (!in_array($order->status, ['Paid', 'Preparing', 'Ready', 'Completed'])) {
+            $order->update([
+                'status' => 'Paid',
+                'current_step' => 'queue',
+                'paid_at' => $order->paid_at ?? now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $order->fresh(),
+        ]);
+    }
 
         $orders = $this->orderService->getUserOrders($userId);
 

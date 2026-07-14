@@ -74,6 +74,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\VerifyRequestSignature::
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::post('/orders/admin-create', [OrderController::class, 'adminCreate']);
+    Route::post('/orders/{orderNumber}/mark-paid', [OrderController::class, 'markPaid']);
 
     // Cart
     Route::get('/cart', [CartController::class, 'index']);

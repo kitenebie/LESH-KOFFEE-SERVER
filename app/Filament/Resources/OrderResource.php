@@ -65,6 +65,7 @@ class OrderResource extends Resource
                         \Filament\Forms\Components\Select::make('status')
                             ->options([
                                 'Queued'           => 'Queued',
+                                'Paid'             => 'Paid',
                                 'Preparing'        => 'Preparing',
                                 'Ready'            => 'Ready',
                                 'Out For Delivery' => 'Out For Delivery',
@@ -207,6 +208,7 @@ class OrderResource extends Resource
                 \Filament\Tables\Columns\BadgeColumn::make('status')
                     ->colors([
                         'warning'  => 'Queued',
+                        'success'  => 'Paid',
                         'primary'  => 'Preparing',
                         'info'     => 'Ready',
                         'success'  => 'Completed',
@@ -285,6 +287,7 @@ class OrderResource extends Resource
                 \Filament\Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'Queued'           => 'Queued',
+                        'Paid'             => 'Paid',
                         'Preparing'        => 'Preparing',
                         'Ready'            => 'Ready',
                         'Out For Delivery' => 'Out For Delivery',
