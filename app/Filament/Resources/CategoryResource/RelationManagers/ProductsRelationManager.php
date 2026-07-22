@@ -25,6 +25,9 @@ class ProductsRelationManager extends RelationManager
                     ->prefix('₱'),
                 \Filament\Forms\Components\FileUpload::make('image')
                     ->image()
+                    ->imageEditor()
+                    ->openable()
+                    ->downloadable()
                     ->directory('products'),
                 \Filament\Forms\Components\Toggle::make('is_popular')
                     ->label('Popular'),

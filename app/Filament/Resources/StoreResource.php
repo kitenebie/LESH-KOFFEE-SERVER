@@ -67,6 +67,8 @@ class StoreResource extends Resource
                         \Filament\Forms\Components\FileUpload::make('avatar')
                             ->image()
                             ->avatar()
+                            ->imageEditor()
+                            ->openable()
                             ->directory('spotlight-avatars'),
                         \Filament\Forms\Components\Textarea::make('reward')
                             ->rows(2)

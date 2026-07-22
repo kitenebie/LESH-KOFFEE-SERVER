@@ -47,6 +47,9 @@ class PromoResource extends Resource
                             ->label('Banner Color'),
                         \Filament\Forms\Components\FileUpload::make('image')
                             ->image()
+                            ->imageEditor()
+                            ->openable()
+                            ->downloadable()
                             ->directory('promos')
                             ->columnSpanFull(),
                         \Filament\Forms\Components\Toggle::make('is_active')

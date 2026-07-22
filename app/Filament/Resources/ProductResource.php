@@ -50,6 +50,9 @@ class ProductResource extends Resource
                             ->prefix('₱'),
                         \Filament\Forms\Components\FileUpload::make('image')
                             ->image()
+                            ->imageEditor()
+                            ->openable()
+                            ->downloadable()
                             ->directory('products')
                             ->columnSpanFull(),
                     ])->columns(2),

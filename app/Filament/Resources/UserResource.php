@@ -52,6 +52,8 @@ class UserResource extends Resource
                         \Filament\Forms\Components\FileUpload::make('avatar')
                             ->image()
                             ->avatar()
+                            ->imageEditor()
+                            ->openable()
                             ->directory('avatars'),
                     ])->columns(2),
 

@@ -59,6 +59,8 @@ class DeliveryTrackingResource extends Resource
                         \Filament\Forms\Components\FileUpload::make('rider_avatar')
                             ->image()
                             ->avatar()
+                            ->imageEditor()
+                            ->openable()
                             ->directory('rider-avatars'),
                     ])->columns(3),
 
