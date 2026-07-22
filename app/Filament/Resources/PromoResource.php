@@ -45,9 +45,9 @@ class PromoResource extends Resource
                             ->maxLength(255),
                         \Filament\Forms\Components\ColorPicker::make('color')
                             ->label('Banner Color'),
-                        \Filament\Forms\Components\TextInput::make('image')
-                            ->url()
-                            ->maxLength(255)
+                        \Filament\Forms\Components\FileUpload::make('image')
+                            ->image()
+                            ->directory('promos')
                             ->columnSpanFull(),
                         \Filament\Forms\Components\Toggle::make('is_active')
                             ->label('Active')

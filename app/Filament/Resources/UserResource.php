@@ -49,9 +49,10 @@ class UserResource extends Resource
                             ->dehydrateStateUsing(fn (string $state): string => bcrypt($state))
                             ->dehydrated(fn (?string $state): bool => filled($state))
                             ->required(fn (string $operation): bool => $operation === 'create'),
-                        \Filament\Forms\Components\TextInput::make('avatar')
-                            ->url()
-                            ->maxLength(255),
+                        \Filament\Forms\Components\FileUpload::make('avatar')
+                            ->image()
+                            ->avatar()
+                            ->directory('avatars'),
                     ])->columns(2),
 
                 \Filament\Schemas\Components\Section::make('Membership & Rewards')

@@ -48,9 +48,9 @@ class ProductResource extends Resource
                             ->numeric()
                             ->required()
                             ->prefix('₱'),
-                        \Filament\Forms\Components\TextInput::make('image')
-                            ->url()
-                            ->maxLength(255)
+                        \Filament\Forms\Components\FileUpload::make('image')
+                            ->image()
+                            ->directory('products')
                             ->columnSpanFull(),
                     ])->columns(2),
 

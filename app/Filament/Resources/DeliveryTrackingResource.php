@@ -56,9 +56,10 @@ class DeliveryTrackingResource extends Resource
                         \Filament\Forms\Components\TextInput::make('rider_phone')
                             ->tel()
                             ->maxLength(255),
-                        \Filament\Forms\Components\TextInput::make('rider_avatar')
-                            ->url()
-                            ->maxLength(255),
+                        \Filament\Forms\Components\FileUpload::make('rider_avatar')
+                            ->image()
+                            ->avatar()
+                            ->directory('rider-avatars'),
                     ])->columns(3),
 
                 \Filament\Schemas\Components\Section::make('Coordinates')

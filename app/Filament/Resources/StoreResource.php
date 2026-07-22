@@ -64,9 +64,10 @@ class StoreResource extends Resource
                         \Filament\Forms\Components\TextInput::make('cups_this_month')
                             ->numeric()
                             ->default(0),
-                        \Filament\Forms\Components\TextInput::make('avatar')
-                            ->url()
-                            ->maxLength(255),
+                        \Filament\Forms\Components\FileUpload::make('avatar')
+                            ->image()
+                            ->avatar()
+                            ->directory('spotlight-avatars'),
                         \Filament\Forms\Components\Textarea::make('reward')
                             ->rows(2)
                             ->columnSpanFull(),

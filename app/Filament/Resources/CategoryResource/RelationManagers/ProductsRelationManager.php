@@ -23,6 +23,9 @@ class ProductsRelationManager extends RelationManager
                     ->numeric()
                     ->required()
                     ->prefix('₱'),
+                \Filament\Forms\Components\FileUpload::make('image')
+                    ->image()
+                    ->directory('products'),
                 \Filament\Forms\Components\Toggle::make('is_popular')
                     ->label('Popular'),
                 \Filament\Forms\Components\Toggle::make('is_customizable')
